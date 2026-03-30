@@ -632,6 +632,154 @@
     .section { padding: 20px 18px; }
     .navtabs a { font-size: 9px; padding: 8px 4px; }
   }
+
+  /* REACTIONS */
+.review-reactions {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+
+.reaction-btn {
+  background: var(--mid);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reaction-btn:hover {
+  background: var(--dim);
+  border-color: var(--accent);
+}
+
+.reaction-btn.reacted {
+  background: rgba(255, 105, 180, 0.2);
+  border-color: #ff69b4;
+  color: #ff69b4;
+}
+
+.reaction-users {
+  font-size: 10px;
+  color: var(--grey);
+  margin-top: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--border);
+}
+
+/* REPLIES */
+.replies-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--grey);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 0;
+  transition: color 0.2s;
+  margin-top: 12px;
+}
+
+.replies-toggle-btn:hover {
+  color: var(--white);
+}
+
+.replies-container {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.replies-container.open {
+  display: block;
+}
+
+.reply-card {
+  background: rgba(42, 42, 42, 0.5);
+  border-left: 2px solid var(--accent);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.reply-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.reply-name {
+  color: var(--white);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.verified-badge {
+  color: #ff69b4;
+  font-size: 10px;
+}
+
+.reply-date {
+  color: var(--grey);
+  font-size: 10px;
+}
+
+.reply-text {
+  color: var(--accent);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.reply-form {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.reply-form textarea {
+  width: 100%;
+  background: var(--black);
+  border: 1px solid var(--border);
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 8px;
+  margin-bottom: 8px;
+  resize: none;
+  outline: none;
+}
+
+.reply-form textarea:focus {
+  border-color: var(--accent);
+}
+
+.reply-submit-btn {
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 12px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reply-submit-btn:hover {
+  background: var(--accent);
+}
 </style>
 </head>
 <body>
