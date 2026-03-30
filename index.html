@@ -165,21 +165,19 @@
     overflow: hidden;
   }
   .ash {
-  width: 2px;
-  height: 2px;
-  background: var(--accent);
-  border-radius: 50%;
-  position: absolute;
-  top: -5px;
-  opacity: 0;
-  animation: ashFall linear infinite;
-}
+    position: absolute;
+    width: 2px; height: 2px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: ashFall linear infinite;
+    opacity: 0;
+  }
   @keyframes ashFall {
-  0% { transform: translateY(-10px) translateX(0); opacity: 0; }
-  10% { opacity: 0.6; }
-  90% { opacity: 0.2; }
-  100% { transform: translateY(120px) translateX(-20px); opacity: 0; }
-}
+    0% { transform: translateY(-10px) translateX(0); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.2; }
+    100% { transform: translateY(120px) translateX(-20px); opacity: 0; }
+  }
 
   /* NAVTABS */
   .navtabs {
@@ -583,12 +581,13 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--grey); }
 
   /* ADMIN CONTROLS */
- #adminControls {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10001;
-}
+  #adminControls {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+  }
+
   .admin-login-btn, .admin-logout-btn {
     background: var(--white);
     color: var(--black);
@@ -759,24 +758,6 @@
     .section { padding: 20px 18px; }
     .navtabs a { font-size: 9px; padding: 8px 4px; }
   }
-  
-/* ===== FADE-IN ANIMATIONS ===== */
-.section {
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  display: none;
-}
-.section.active {
-  display: block;
-  opacity: 1;
-  transform: translateY(0);
-}
- /* ===== CURSOR ABOVE ELEMENTS EXCEPT ADMIN ===== */
-#cursor, #cursor-ring { pointer-events: none; 
-
-}
-  
 </style>
 </head>
 <body>
@@ -1128,58 +1109,28 @@
 <script src="reviews-manager.js" type="module"></script>
 <script>
   // CURSOR
-  <script>
-/* ========= CURSOR ========= */
-const cursor = document.getElementById('cursor');
-const cursorRing = document.getElementById('cursor-ring');
-
-let mouseX = 0, mouseY = 0;
-let ringX = 0, ringY = 0;
-
-document.addEventListener('mousemove', e => {
-  mouseX = e.clientX;
-  mouseY = e.clientY;
-  cursor.style.transform = `translate(${mouseX}px, ${mouseY}px)`;
-});
-
-// Smooth ring follow
-function animateRing() {
-  ringX += (mouseX - ringX) * 0.15;
-  ringY += (mouseY - ringY) * 0.15;
-  cursorRing.style.transform = `translate(${ringX}px, ${ringY}px)`;
-  requestAnimationFrame(animateRing);
-}
-animateRing();
-
-/* ========= SECTION SWITCHING ========= */
-function showSection(id, el) {
-  const sections = document.querySelectorAll('.section');
-  sections.forEach(s => {
-    if (s.id === id) s.classList.add('active');
-    else s.classList.remove('active');
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursor-ring');
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+    ring.style.left = e.clientX + 'px';
+    ring.style.top = e.clientY + 'px';
   });
-  
-  document.querySelectorAll('.navtabs a').forEach(a => a.classList.remove('active'));
-  el.classList.add('active');
-}
 
-/* ========= ASH PARTICLES ========= */
-const ashContainer = document.getElementById('ashParticles');
-const ashCount = 40;
-
-for (let i = 0; i < ashCount; i++) {
-  const ash = document.createElement('div');
-  ash.className = 'ash';
-  ash.style.left = `${Math.random() * 100}%`;
-  ash.style.animationDelay = `${Math.random() * 5}s`;
-  ash.style.animationDuration = `${3 + Math.random() * 3}s`;
-  ashContainer.appendChild(ash);
-}
-
-/* ========= ADMIN PANEL VISIBLE ========= */
-const adminPanel = document.getElementById('adminControls');
-adminPanel.style.zIndex = 10001;
+  // ASH PARTICLES
+  const ashContainer = document.getElementById('ashParticles');
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    p.className = 'ash';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.width = p.style.height = (Math.random() * 2 + 1) + 'px';
+    p.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    p.style.animationDelay = (Math.random() * 4) + 's';
+    p.style.opacity = Math.random() * 0.5;
+    ashContainer.appendChild(p);
   }
+
   // TABS
   function showSection(id, el) {
     event.preventDefault();
