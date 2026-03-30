@@ -131,17 +131,24 @@
     position: relative;
     overflow: hidden;
   }
-  .header-avatar::after {
-    content: '灰幕';
-    url("https://image2url.com/r2/default/images/1774878032678-96a4ac67-33d2-4646-9c7b-62b2bdbc535c.jpg");
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    color: var(--border);
-    letter-spacing: -2px;
+  .header-avatar {
+  width: 80px; 
+  height: 80px;
+  border: 1px solid var(--border);
+  background: var(--dim);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background-image: url("https://image2url.com/r2/default/images/1774878032678-96a4ac67-33d2-4646-9c7b-62b2bdbc535c.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.header-avatar::after {
+  content: '';
+  display: none; /* Hide the pseudo-element if you don't need it */
+}
+  
   }
   .header-text h1 {
     font-family: 'Bebas Neue', sans-serif;
