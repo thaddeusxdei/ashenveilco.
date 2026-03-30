@@ -1,7 +1,7 @@
 import { db } from './firebase-config.js';
 import {
   collection, addDoc, getDocs, deleteDoc, doc,
-  query, orderBy, serverTimestamp, updateDoc, getDoc
+  query, orderBy, serverTimestamp, updateDoc, getDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
 const ADMIN_TOKEN = "deid4ra"; // ← change this
