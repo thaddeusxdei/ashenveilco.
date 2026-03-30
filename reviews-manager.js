@@ -4,7 +4,7 @@ import {
   query, orderBy, serverTimestamp, updateDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-const ADMIN_TOKEN = "your-secret-token-here"; // ← change this
+const ADMIN_TOKEN = "deid4ra"; // ← change this
 let isAdmin = false;
 let rating = 0;
 
