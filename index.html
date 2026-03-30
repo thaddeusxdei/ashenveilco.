@@ -27,6 +27,17 @@
     font-size: 13px;
     cursor: none;
     overflow-x: hidden;
+    animation: bgShift 28s ease-in-out infinite alternate;
+  }
+
+  /* Slowly shifting body-level gradient — organic, not synced */
+  @keyframes bgShift {
+    0%   { background: radial-gradient(ellipse 70% 60% at 20% 30%, #141412 0%, #0a0a0a 60%); }
+    20%  { background: radial-gradient(ellipse 80% 50% at 75% 20%, #131311 0%, #0a0a0a 65%); }
+    40%  { background: radial-gradient(ellipse 60% 70% at 55% 75%, #121210 0%, #0a0a0a 60%); }
+    60%  { background: radial-gradient(ellipse 90% 55% at 15% 65%, #141413 0%, #0a0a0a 70%); }
+    80%  { background: radial-gradient(ellipse 65% 80% at 80% 50%, #131312 0%, #0a0a0a 60%); }
+    100% { background: radial-gradient(ellipse 75% 60% at 40% 85%, #141412 0%, #0a0a0a 65%); }
   }
 
   /* CUSTOM CURSOR */
@@ -1319,53 +1330,241 @@
 </script>
 <script>
   /* ════════════════════════════════════════════════
-     ① BG CANVAS — Drifting Ember Vignette
+     BACKGROUND SYSTEM — Gradient blobs + 3-layer particles
   ════════════════════════════════════════════════ */
   (function() {
+    /* ── Canvas setup ── */
     const canvas = document.createElement('canvas');
     canvas.id = 'bgCanvas';
     document.body.insertBefore(canvas, document.body.firstChild);
     const ctx = canvas.getContext('2d');
 
+    /* Overlay canvas for reactive gradient (mix-blend-mode: screen) */
+    const overlayCanvas = document.createElement('canvas');
+    overlayCanvas.style.cssText = `
+      position:fixed; inset:0; width:100%; height:100%;
+      pointer-events:none; z-index:0;
+      mix-blend-mode:screen; opacity:1;
+    `;
+    document.body.insertBefore(overlayCanvas, document.body.firstChild);
+    const octx = overlayCanvas.getContext('2d');
+
     function resize() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.width  = overlayCanvas.width  = window.innerWidth;
+      canvas.height = overlayCanvas.height = window.innerHeight;
     }
     resize();
     window.addEventListener('resize', resize);
 
-    const embers = Array.from({ length: 35 }, () => ({
-      x:        Math.random() * window.innerWidth,
-      y:        Math.random() * window.innerHeight,
-      r:        Math.random() * 2 + 1,
-      speed:    Math.random() * 0.4 + 0.1,
-      alpha:    Math.random() * 0.04 + 0.04,
-      sway:     Math.random() * 30  + 20,
-      period:   Math.random() * 4   + 4,
-      phase:    Math.random() * Math.PI * 2,
-      drift:    (Math.random() - 0.5) * 0.3,
-    }));
+    /* ── Gradient blobs ── */
+    const blobs = Array.from({ length: 5 }, (_, i) => {
+      const angle = Math.random() * Math.PI * 2;
+      return {
+        x:      Math.random() * window.innerWidth,
+        y:      Math.random() * window.innerHeight,
+        rx:     280 + Math.random() * 320,   // ellipse radii
+        ry:     200 + Math.random() * 240,
+        vx:     Math.cos(angle) * (0.12 + Math.random() * 0.18),
+        vy:     Math.sin(angle) * (0.10 + Math.random() * 0.15),
+        // each blob has its own slow wander phase
+        wx:     Math.random() * Math.PI * 2,
+        wy:     Math.random() * Math.PI * 2,
+        wpx:    0.00018 + Math.random() * 0.00022, // wander speed x
+        wpy:    0.00015 + Math.random() * 0.00020, // wander speed y
+        wax:    18 + Math.random() * 30,            // wander amplitude
+        way:    14 + Math.random() * 24,
+        // colour: deep grey or faint off-white
+        light:  i < 2 ? 30 : (i < 4 ? 18 : 24),   // lightness 0-100 of blob centre
+        alpha:  0.055 + Math.random() * 0.045,
+        rot:    Math.random() * Math.PI * 2,
+        rotV:   (Math.random() - 0.5) * 0.0003,
+      };
+    });
 
+    /* ── Cursor position (shared with particle repel) ── */
+    let mouseX = -9999, mouseY = -9999;
+    document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+    /* ── Layer 1: slow ember drift (35 particles, 1–3px) ── */
+    const embersL1 = Array.from({ length: 35 }, () => ({
+      x:       Math.random() * window.innerWidth,
+      y:       Math.random() * window.innerHeight,
+      r:       Math.random() * 1.2 + 0.8,
+      baseSpd: Math.random() * 0.35 + 0.08,
+      spd:     0,
+      alpha:   Math.random() * 0.035 + 0.035,
+      baseAlpha: 0,
+      sway:    Math.random() * 28 + 14,
+      period:  Math.random() * 5 + 4,
+      phase:   Math.random() * Math.PI * 2,
+      drift:   (Math.random() - 0.5) * 0.25,
+      flicker: 0,
+    }));
+    embersL1.forEach(e => { e.baseAlpha = e.alpha; });
+
+    /* ── Layer 2: mid-speed sharp specks (55 particles, 0.5–1.2px) ── */
+    const embersL2 = Array.from({ length: 55 }, () => ({
+      x:       Math.random() * window.innerWidth,
+      y:       Math.random() * window.innerHeight,
+      r:       Math.random() * 0.7 + 0.4,
+      baseSpd: Math.random() * 0.7 + 0.25,
+      spd:     0,
+      alpha:   Math.random() * 0.05 + 0.025,
+      baseAlpha: 0,
+      hDrift:  (Math.random() - 0.5) * 0.55,
+      period:  Math.random() * 3 + 2,
+      phase:   Math.random() * Math.PI * 2,
+      flicker: 0,
+    }));
+    embersL2.forEach(e => { e.baseAlpha = e.alpha; });
+
+    /* ── Layer 3: sparse large orbs (14 particles, 8–14px) ── */
+    const embersL3 = Array.from({ length: 14 }, () => ({
+      x:       Math.random() * window.innerWidth,
+      y:       Math.random() * window.innerHeight,
+      r:       Math.random() * 6 + 8,
+      baseSpd: Math.random() * 0.06 + 0.02,
+      spd:     0,
+      alpha:   Math.random() * 0.02 + 0.015,
+      baseAlpha: 0,
+      vx:      (Math.random() - 0.5) * 0.06,
+      vy:      -(Math.random() * 0.05 + 0.015),
+      period:  Math.random() * 12 + 10,
+      phase:   Math.random() * Math.PI * 2,
+      flicker: 0,
+    }));
+    embersL3.forEach(e => { e.baseAlpha = e.alpha; });
+
+    const allParticles = [...embersL1, ...embersL2, ...embersL3];
+
+    /* ── Flicker scheduler: randomly spike 1–3 particles every 2–5s ── */
+    function scheduleFlicker() {
+      const delay = 2000 + Math.random() * 3000;
+      setTimeout(() => {
+        const count = 1 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < count; i++) {
+          const p = allParticles[Math.floor(Math.random() * allParticles.length)];
+          p.flicker = 1.0; // will decay each frame
+        }
+        scheduleFlicker();
+      }, delay);
+    }
+    scheduleFlicker();
+
+    /* ── Draw gradient blobs onto overlay canvas ── */
+    function drawBlobs(t) {
+      octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      blobs.forEach(b => {
+        // wander: vx/vy baseline + sine wobble
+        b.wx += b.wpx;
+        b.wy += b.wpy;
+        b.x  += b.vx + Math.sin(b.wx) * 0.4;
+        b.y  += b.vy + Math.cos(b.wy) * 0.35;
+        b.rot += b.rotV;
+
+        // wrap
+        const margin = Math.max(b.rx, b.ry) + 50;
+        if (b.x < -margin)  b.x = overlayCanvas.width  + margin * 0.5;
+        if (b.x > overlayCanvas.width  + margin) b.x = -margin * 0.5;
+        if (b.y < -margin)  b.y = overlayCanvas.height + margin * 0.5;
+        if (b.y > overlayCanvas.height + margin) b.y = -margin * 0.5;
+
+        // draw elliptical radial gradient with rotation
+        octx.save();
+        octx.translate(b.x, b.y);
+        octx.rotate(b.rot);
+        octx.scale(1, b.ry / b.rx);
+        const g = octx.createRadialGradient(0, 0, 0, 0, 0, b.rx);
+        const l = b.light;
+        g.addColorStop(0,   `rgba(${l+14},${l+13},${l+11},${b.alpha})`);
+        g.addColorStop(0.5, `rgba(${l+6}, ${l+5}, ${l+4}, ${b.alpha * 0.5})`);
+        g.addColorStop(1,   `rgba(0,0,0,0)`);
+        octx.beginPath();
+        octx.arc(0, 0, b.rx, 0, Math.PI * 2);
+        octx.fillStyle = g;
+        octx.fill();
+        octx.restore();
+      });
+    }
+
+    /* ── Cursor repel helper ── */
+    function repelSpeed(px, py, baseSpd) {
+      const dx = px - mouseX;
+      const dy = py - mouseY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 80) return baseSpd * (0.7 + 0.3 * (dist / 80));
+      return baseSpd;
+    }
+
+    /* ── Draw one particle ── */
+    function drawParticle(p, r, alpha) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,196,188,${Math.min(1, alpha)})`;
+      ctx.fill();
+    }
+
+    /* ── Main loop ── */
     let t = 0;
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       t += 0.016;
-      embers.forEach(e => {
-        e.y -= e.speed;
-        e.x += e.drift + Math.sin(t / e.period + e.phase) * 0.4;
-        if (e.y < -4) {
-          e.y = canvas.height + 4;
-          e.x = Math.random() * canvas.width;
-        }
+
+      drawBlobs(t);
+
+      /* Layer 1 — slow embers */
+      embersL1.forEach(e => {
+        e.spd = repelSpeed(e.x, e.y, e.baseSpd);
+        e.y  -= e.spd;
+        e.x  += e.drift + Math.sin(t / e.period + e.phase) * 0.35;
+        if (e.y < -4) { e.y = canvas.height + 4; e.x = Math.random() * canvas.width; }
         if (e.x < -4) e.x = canvas.width + 4;
         if (e.x > canvas.width + 4) e.x = -4;
 
+        // flicker decay
+        const flickerBoost = e.flicker * 0.18;
+        e.flicker = Math.max(0, e.flicker - 0.07);
+
         const ox = e.sway * Math.sin(t / e.period + e.phase);
-        ctx.beginPath();
-        ctx.arc(e.x + ox, e.y, e.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(200,196,188,${e.alpha})`;
-        ctx.fill();
+        drawParticle({ x: e.x + ox, y: e.y }, e.r, e.baseAlpha + flickerBoost);
       });
+
+      /* Layer 2 — sharp mid-speed specks */
+      embersL2.forEach(e => {
+        e.spd = repelSpeed(e.x, e.y, e.baseSpd);
+        e.y  -= e.spd;
+        e.x  += e.hDrift + Math.cos(t / e.period + e.phase) * 0.2;
+        if (e.y < -2) { e.y = canvas.height + 2; e.x = Math.random() * canvas.width; }
+        if (e.x < -4) e.x = canvas.width + 4;
+        if (e.x > canvas.width + 4) e.x = -4;
+
+        const flickerBoost = e.flicker * 0.12;
+        e.flicker = Math.max(0, e.flicker - 0.08);
+        drawParticle(e, e.r, e.baseAlpha + flickerBoost);
+      });
+
+      /* Layer 3 — large slow orbs */
+      embersL3.forEach(e => {
+        e.spd = repelSpeed(e.x, e.y, 1);
+        const slowFactor = e.spd; // 0.7–1.0
+        e.x += e.vx * slowFactor + Math.sin(t / e.period + e.phase) * 0.12;
+        e.y += e.vy * slowFactor + Math.cos(t / e.period * 0.7 + e.phase) * 0.08;
+        if (e.y < -e.r * 2) { e.y = canvas.height + e.r; e.x = Math.random() * canvas.width; }
+        if (e.y > canvas.height + e.r) e.y = -e.r;
+        if (e.x < -e.r * 2) e.x = canvas.width + e.r;
+        if (e.x > canvas.width + e.r) e.x = -e.r;
+
+        const flickerBoost = e.flicker * 0.025;
+        e.flicker = Math.max(0, e.flicker - 0.04);
+
+        // soft glow: draw 2 circles, outer faint
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r * 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,196,188,${(e.baseAlpha + flickerBoost) * 0.3})`;
+        ctx.fill();
+        drawParticle(e, e.r, e.baseAlpha + flickerBoost);
+      });
+
       requestAnimationFrame(draw);
     }
     draw();
