@@ -280,32 +280,45 @@ const repliesHTML = `
   </div>
 `;
 
-      card.innerHTML = `
-        <div class="review-header">
-          <div class="review-name">${displayName}</div>
-          <div class="review-service-tag">${data.service}</div>
+     card.innerHTML = `
+  <div class="review-header">
+    <div class="review-name">${displayName}</div>
+    <div class="review-service-tag">${data.service}</div>
+    ${isAdmin ? `<button class="delete-review-btn" onclick="deleteReview('${id}')">Delete</button>` : ''}
+  </div>
+
+  <div class="review-stars">${stars}</div>
+
+  <div class="review-text">${data.text}</div>
+
+  <div class="review-date">
+    ${formatDate(data.timestamp)}
+  </div>
+
+  ${reactionsHTML}
+
+  <div class="replies-section">
+    <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
+      💬 ${replies.length} Replies
+    </button>
+
+    <div class="replies-container" id="replies-${id}">
+      ${replies.map(reply => `
+        <div class="reply-card">
+          <div class="reply-name">thaddeus ✓</div>
+          <div class="reply-text">${reply.text}</div>
         </div>
+      `).join('')}
 
-        <div class="review-stars">${stars}</div>
-
-        <div class="review-text">${data.text}</div>
-
-        <div class="review-date">
-        ${formatDate(data.timestamp)}
+      ${isAdmin ? `
+        <div class="reply-input-wrapper">
+          <textarea id="reply-input-${id}" placeholder="Write a reply..."></textarea>
+          <button onclick="submitReply('${id}')">Reply</button>
         </div>
-
-        ${reactionsHTML}
-
-        ${repliesHTML}
-      `;
-
-      list.appendChild(card);
-
-    });
-
-  });
-
-}
+      ` : ''}
+    </div>
+  </div>
+`;
 
 // ─── Star Rating ───────────────────────────────────────────────────────────────
 
