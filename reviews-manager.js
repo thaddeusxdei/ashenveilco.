@@ -1,10 +1,10 @@
 import { db } from './firebase-config.js';
 import {
   collection, addDoc, getDocs, deleteDoc, doc,
-  query, orderBy, serverTimestamp, updateDoc, getDoc, onSnapshot
+  query, orderBy, serverTimestamp, updateDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-const ADMIN_TOKEN = "deid4ra"; // ← change this
+const ADMIN_TOKEN = "your-secret-token-here"; // ← change this
 let isAdmin = false;
 let rating = 0;
 
@@ -110,6 +110,7 @@ async function deleteReview(reviewId) {
   if (!confirm('Delete this review?')) return;
   try {
     await deleteDoc(doc(db, 'reviews', reviewId));
+    loadReviews();
   } catch (err) {
     console.error(err);
     alert('Error deleting review. Check Firestore rules — make sure delete is allowed.');
@@ -145,6 +146,7 @@ async function toggleReaction(reviewId) {
     }
 
     await updateDoc(reviewRef, { reactions });
+    loadReviews();
   } catch (err) {
     console.error(err);
   }
@@ -172,6 +174,7 @@ async function submitReply(reviewId) {
 
     await updateDoc(reviewRef, { replies: [...replies, newReply] });
     if (textarea) textarea.value = '';
+    loadReviews();
   } catch (err) {
     console.error(err);
     alert('Error adding reply.');
@@ -189,6 +192,7 @@ async function deleteReply(reviewId, replyId) {
 
     const replies = (snap.data().replies || []).filter(r => r.id !== replyId);
     await updateDoc(reviewRef, { replies });
+    loadReviews();
   } catch (err) {
     console.error(err);
     alert('Error deleting reply.');
@@ -202,30 +206,101 @@ function toggleReplies(reviewId) {
 
 // ─── Load & Render Reviews ─────────────────────────────────────────────────────
 
-const repliesHTML = `
-  <div class="replies-section">
-    <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
-      💬 ${replies.length} Replies
-    </button>
+async function loadReviews() {
+  try {
+    const q = query(collection(db, 'reviews'), orderBy('timestamp', 'desc'));
+    const snapshot = await getDocs(q);
+    const list = document.getElementById('reviewsList');
+    const noRev = document.getElementById('noReviews');
 
-    <div class="replies-container" id="replies-${id}">
-      ${replies.map(reply => `
+    if (snapshot.empty) {
+      noRev.style.display = 'block';
+      list.innerHTML = '';
+      return;
+    }
+
+    noRev.style.display = 'none';
+    list.innerHTML = '';
+
+    const visitorId = isAdmin ? 'thaddeus' : getVisitorId();
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const id = docSnap.id;
+      const card = document.createElement('div');
+      card.className = 'review-card';
+
+      const displayName = censorName(data.name);
+      const stars = '★'.repeat(data.rating) + '☆'.repeat(5 - data.rating);
+      const reactions = data.reactions || [];
+      const replies = data.replies || [];
+      const myReacted = reactions.includes(visitorId);
+
+      // Reaction display names
+      const reactionNames = reactions.map(r =>
+        r === 'thaddeus' ? 'thaddeus ✓' : 'Traveler'
+      ).join(', ');
+
+      // Reactions HTML
+      const reactionsHTML = `
+        <div class="review-reactions">
+          <button class="reaction-btn ${myReacted ? 'reacted' : ''}" onclick="toggleReaction('${id}')">
+            ❤️ ${reactions.length > 0 ? reactions.length : ''}
+          </button>
+          ${reactions.length > 0 ? `<span class="reaction-users">${reactionNames}</span>` : ''}
+        </div>
+      `;
+
+      // Replies HTML
+      let repliesInner = replies.map(reply => `
         <div class="reply-card">
-          <div class="reply-name">thaddeus ✓</div>
+          <div class="reply-header">
+            <span class="reply-name">thaddeus <span class="verified-badge">✓</span></span>
+            <span class="reply-date">${formatDate({ seconds: Math.floor(new Date(reply.timestamp).getTime() / 1000) })}</span>
+            ${isAdmin ? `<button class="delete-reply-btn" onclick="deleteReply('${id}', '${reply.id}')">✕</button>` : ''}
+          </div>
           <div class="reply-text">${reply.text}</div>
-          ${isAdmin ? `<button class="delete-reply-btn" onclick="deleteReply('${id}', '${reply.id}')">Delete</button>` : ''}
         </div>
-      `).join('')}
+      `).join('');
 
-      ${isAdmin ? `
-        <div class="reply-input-wrapper">
-          <textarea id="reply-input-${id}" placeholder="Write a reply..."></textarea>
-          <button onclick="submitReply('${id}')">Reply</button>
+      const replyForm = isAdmin ? `
+        <div class="reply-form">
+          <textarea id="reply-input-${id}" placeholder="Write a reply..." rows="2"></textarea>
+          <button class="reply-submit-btn" onclick="submitReply('${id}')">Reply</button>
         </div>
-      ` : ''}
-    </div>
-  </div>
-`;
+      ` : '';
+
+      const repliesHTML = (replies.length > 0 || isAdmin) ? `
+        <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
+          💬 ${replies.length} ${replies.length === 1 ? 'Reply' : 'Replies'}
+        </button>
+        <div class="replies-container" id="replies-${id}">
+          ${repliesInner}
+          ${replyForm}
+        </div>
+      ` : '';
+
+      card.innerHTML = `
+        <div class="review-header">
+          <div>
+            <div class="review-name">${displayName}</div>
+            <div class="review-service-tag">${data.service}</div>
+          </div>
+          ${isAdmin ? `<button class="delete-review-btn" onclick="deleteReview('${id}')">✕ Delete</button>` : ''}
+        </div>
+        <div class="review-stars">${stars}</div>
+        <div class="review-text">${data.text}</div>
+        <div class="review-date">${formatDate(data.timestamp)}</div>
+        ${reactionsHTML}
+        ${repliesHTML}
+      `;
+
+      list.appendChild(card);
+    });
+  } catch (err) {
+    console.error('Error loading reviews:', err);
+  }
+}
 
 // ─── Star Rating ───────────────────────────────────────────────────────────────
 
