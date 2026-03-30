@@ -201,7 +201,6 @@ function toggleReplies(reviewId) {
 // ─── Load & Render Reviews ─────────────────────────────────────────────────────
 
 function loadReviews() {
-
   const q = query(
     collection(db, "reviews"),
     orderBy("timestamp", "desc")
@@ -211,7 +210,6 @@ function loadReviews() {
   const noRev = document.getElementById("noReviews");
 
   onSnapshot(q, (snapshot) => {
-
     if (snapshot.empty) {
       noRev.style.display = "block";
       list.innerHTML = "";
@@ -224,7 +222,6 @@ function loadReviews() {
     const visitorId = isAdmin ? "thaddeus" : getVisitorId();
 
     snapshot.forEach(docSnap => {
-
       const data = docSnap.data();
       const id = docSnap.id;
 
@@ -233,69 +230,63 @@ function loadReviews() {
 
       const displayName = censorName(data.name);
       const stars = "★".repeat(data.rating) + "☆".repeat(5 - data.rating);
-
       const reactions = data.reactions || [];
       const replies = data.replies || [];
-
       const myReacted = reactions.includes(visitorId);
 
+      // Reactions HTML
       const reactionsHTML = `
         <div class="review-reactions">
           <button class="reaction-btn ${myReacted ? "reacted" : ""}"
-          onclick="toggleReaction('${id}')">
-          ❤️ ${reactions.length}
+            onclick="toggleReaction('${id}')">
+            ❤️ ${reactions.length}
           </button>
         </div>
       `;
 
-      let repliesInner = replies.map(reply => `
-        <div class="reply-card">
-          <div class="reply-name">
-          thaddeus ✓
-          </div>
-          <div class="reply-text">
-          ${reply.text}
-          </div>
-        </div>
-      `).join("");
-
+      // Replies HTML
       const repliesHTML = `
-        <button class="replies-toggle-btn"
-        onclick="toggleReplies('${id}')">
-        💬 ${replies.length} Replies
-        </button>
+        <div class="replies-section">
+          <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
+            💬 ${replies.length} Replies
+          </button>
 
-        <div class="replies-container"
-        id="replies-${id}">
-        ${repliesInner}
+          <div class="replies-container" id="replies-${id}">
+            ${replies.map(reply => `
+              <div class="reply-card">
+                <div class="reply-name">thaddeus ✓</div>
+                <div class="reply-text">${reply.text}</div>
+              </div>
+            `).join('')}
+
+            ${isAdmin ? `
+              <div class="reply-input-wrapper">
+                <textarea id="reply-input-${id}" placeholder="Write a reply..."></textarea>
+                <button onclick="submitReply('${id}')">Reply</button>
+              </div>
+            ` : ''}
+          </div>
         </div>
       `;
 
+      // Build the card HTML
       card.innerHTML = `
         <div class="review-header">
           <div class="review-name">${displayName}</div>
           <div class="review-service-tag">${data.service}</div>
+          ${isAdmin ? `<button class="delete-review-btn" onclick="deleteReview('${id}')">Delete</button>` : ''}
         </div>
 
         <div class="review-stars">${stars}</div>
-
         <div class="review-text">${data.text}</div>
-
-        <div class="review-date">
-        ${formatDate(data.timestamp)}
-        </div>
-
+        <div class="review-date">${formatDate(data.timestamp)}</div>
         ${reactionsHTML}
-
         ${repliesHTML}
       `;
 
       list.appendChild(card);
-
     });
-
   });
-
 }
 
 // ─── Star Rating ───────────────────────────────────────────────────────────────
