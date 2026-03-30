@@ -124,32 +124,23 @@
     gap: 24px;
   }
   .header-avatar {
-    width: 80px; height: 80px;
+    width: 80px; 
+    height: 80px;
     border: 1px solid var(--border);
     background: var(--dim);
     flex-shrink: 0;
     position: relative;
     overflow: hidden;
+    background-image: url("https://image2url.com/r2/default/images/1774878032678-96a4ac67-33d2-4646-9c7b-62b2bdbc535c.jpg");
+    background-size: cover;
+    background-position: center;
   }
-  .header-avatar {
-  width: 80px; 
-  height: 80px;
-  border: 1px solid var(--border);
-  background: var(--dim);
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-  background-image: url("https://image2url.com/r2/default/images/1774878032678-96a4ac67-33d2-4646-9c7b-62b2bdbc535c.jpg");
-  background-size: cover;
-  background-position: center;
-}
 
-.header-avatar::after {
-  content: '';
-  display: none; /* Hide the pseudo-element if you don't need it */
-}
-  
+  .header-avatar::after {
+    content: '';
+    display: none;
   }
+  
   .header-text h1 {
     font-family: 'Bebas Neue', sans-serif;
     font-size: 52px;
@@ -589,7 +580,7 @@
   ::-webkit-scrollbar-thumb { background: var(--border); }
   ::-webkit-scrollbar-thumb:hover { background: var(--grey); }
 
-   /* ADMIN CONTROLS */
+  /* ADMIN CONTROLS */
   #adminControls {
     position: fixed;
     top: 20px;
@@ -632,11 +623,20 @@
     background: #6a3a3a;
     border-color: #ff6b6b;
   }
+
+  @media (max-width: 600px) {
+    .window { margin: 0; }
+    .main-grid { grid-template-columns: 1fr; }
+    .about-grid { grid-template-columns: 1fr; }
+    .header-text h1 { font-size: 36px; }
+    .section { padding: 20px 18px; }
+    .navtabs a { font-size: 9px; padding: 8px 4px; }
+  }
 </style>
 </head>
 <body>
-<div id="adminControls"></div>
 
+<div id="adminControls"></div>
 <div id="cursor"></div>
 <div id="cursor-ring"></div>
 
@@ -872,7 +872,7 @@
     </div>
   </div>
 
-     <!-- ═══ REVIEWS ═══ -->
+  <!-- ═══ REVIEWS ═══ -->
   <div class="section" id="reviews">
     <div class="section-label">Client Reviews</div>
 
@@ -979,8 +979,7 @@
 
 </div><!-- end .window -->
 
-<script>
-  <script src="firebase-config.js" type="module"></script>
+<script src="firebase-config.js" type="module"></script>
 <script src="reviews-manager.js" type="module"></script>
 <script>
   // CURSOR
