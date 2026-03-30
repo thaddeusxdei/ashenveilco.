@@ -245,30 +245,30 @@ function loadReviews() {
       `;
 
       // Replies HTML
-      const repliesHTML = `
-        <div class="replies-section">
-          <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
-            💬 ${replies.length} Replies
-          </button>
+     const repliesHTML = `
+  <div class="replies-section">
+    <button class="replies-toggle-btn" onclick="toggleReplies('${id}')">
+      💬 ${replies.length} Replies
+    </button>
 
-          <div class="replies-container" id="replies-${id}">
-            ${replies.map(reply => `
-              <div class="reply-card">
-                <div class="reply-name">thaddeus ✓</div>
-                <div class="reply-text">${reply.text}</div>
-              </div>
-            `).join('')}
-
-            ${isAdmin ? `
-              <div class="reply-input-wrapper">
-                <textarea id="reply-input-${id}" placeholder="Write a reply..."></textarea>
-                <button onclick="submitReply('${id}')">Reply</button>
-              </div>
-            ` : ''}
-          </div>
+    <div class="replies-container" id="replies-${id}">
+      ${replies.map(reply => `
+        <div class="reply-card">
+          <div class="reply-name">thaddeus ✓</div>
+          <div class="reply-text">${reply.text}</div>
+          ${isAdmin ? `<button class="delete-reply-btn" onclick="deleteReply('${id}', '${reply.id}')">Delete</button>` : ''}
         </div>
-      `;
+      `).join('')}
 
+      ${isAdmin ? `
+        <div class="reply-input-wrapper">
+          <textarea id="reply-input-${id}" placeholder="Write a reply..."></textarea>
+          <button onclick="submitReply('${id}')">Reply</button>
+        </div>
+      ` : ''}
+    </div>
+  </div>
+`;
       // Build the card HTML
       card.innerHTML = `
         <div class="review-header">
