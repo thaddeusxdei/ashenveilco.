@@ -635,6 +635,7 @@
 </style>
 </head>
 <body>
+<div id="adminControls"></div>
 
 <div id="cursor"></div>
 <div id="cursor-ring"></div>
@@ -979,6 +980,9 @@
 </div><!-- end .window -->
 
 <script>
+  <script src="firebase-config.js" type="module"></script>
+<script src="reviews-manager.js" type="module"></script>
+<script>
   // CURSOR
   const cursor = document.getElementById('cursor');
   const ring = document.getElementById('cursor-ring');
@@ -1016,6 +1020,7 @@
     const item = el.closest('.faq-item');
     item.classList.toggle('open');
   }
+</script>
 
   // REVIEWS
   let rating = 0;
