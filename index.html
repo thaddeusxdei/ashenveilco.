@@ -165,19 +165,21 @@
     overflow: hidden;
   }
   .ash {
-    position: absolute;
-    width: 2px; height: 2px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: ashFall linear infinite;
-    opacity: 0;
-  }
+  width: 2px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 50%;
+  position: absolute;
+  top: -5px;
+  opacity: 0;
+  animation: ashFall linear infinite;
+}
   @keyframes ashFall {
-    0% { transform: translateY(-10px) translateX(0); opacity: 0; }
-    10% { opacity: 0.6; }
-    90% { opacity: 0.2; }
-    100% { transform: translateY(120px) translateX(-20px); opacity: 0; }
-  }
+  0% { transform: translateY(-10px) translateX(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.2; }
+  100% { transform: translateY(120px) translateX(-20px); opacity: 0; }
+}
 
   /* NAVTABS */
   .navtabs {
@@ -581,13 +583,12 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--grey); }
 
   /* ADMIN CONTROLS */
-  #adminControls {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-  }
-
+ #adminControls {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10001;
+}
   .admin-login-btn, .admin-logout-btn {
     background: var(--white);
     color: var(--black);
@@ -758,6 +759,24 @@
     .section { padding: 20px 18px; }
     .navtabs a { font-size: 9px; padding: 8px 4px; }
   }
+  
+/* ===== FADE-IN ANIMATIONS ===== */
+.section {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  display: none;
+}
+.section.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+ /* ===== CURSOR ABOVE ELEMENTS EXCEPT ADMIN ===== */
+#cursor, #cursor-ring { pointer-events: none; 
+
+}
+  
 </style>
 </head>
 <body>
