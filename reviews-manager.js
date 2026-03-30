@@ -1,7 +1,7 @@
 import { db } from './firebase-config.js';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
-const ADMIN_TOKEN = "your-secret-token-here"; // Change this to something secure
+const ADMIN_TOKEN = "deid4ra"; // Change this to something secure
 let isAdmin = false;
 
 // Check if user is admin
