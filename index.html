@@ -758,6 +758,61 @@
     .section { padding: 20px 18px; }
     .navtabs a { font-size: 9px; padding: 8px 4px; }
   }
+/* --- Global Smooth Transitions --- */
+a, button, .tag, .service-item, .main-box, .review-card {
+  transition: all 0.35s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* Hover Effects */
+.tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.service-item:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 0 12px rgba(200,196,188,0.3);
+}
+
+/* Header Avatar Floating */
+.header-avatar {
+  animation: floatAvatar 4s ease-in-out infinite alternate;
+}
+@keyframes floatAvatar {
+  0% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* Header Background Stripe Animation */
+.header-bg {
+  animation: stripeMove 6s linear infinite;
+}
+@keyframes stripeMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 20px; }
+}
+
+/* Cursor grow on interactive hover */
+.interactive-hover:hover ~ #cursor {
+  transform: translate(-50%, -50%) scale(1.8);
+}
+
+/* Fade-in for elements inside sections */
+.section .main-box, .section .about-card, .review-card {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: staggerFadeIn 0.6s forwards;
+}
+.section.active .main-box:nth-child(1) { animation-delay: 0.1s; }
+.section.active .main-box:nth-child(2) { animation-delay: 0.2s; }
+.section.active .main-box:nth-child(3) { animation-delay: 0.3s; }
+.section.active .main-box:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes staggerFadeIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+  
 </style>
 </head>
 <body>
@@ -1145,7 +1200,35 @@
     const item = el.closest('.faq-item');
     item.classList.toggle('open');
   }
-</script>
+  
+<script>
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+document.addEventListener('mousemove', e => {
+  cursor.style.top = e.clientY + 'px';
+  cursor.style.left = e.clientX + 'px';
+  ring.style.top = e.clientY + 'px';
+  ring.style.left = e.clientX + 'px';
+});
 
+/* Add interactive class to all clickable elements */
+document.querySelectorAll('a, button, .service-item, .tag').forEach(el => {
+  el.classList.add('interactive-hover');
+});
+
+/* Ash Particles */
+const ashContainer = document.getElementById('ashParticles');
+function createAsh() {
+  const ash = document.createElement('div');
+  ash.className = 'ash';
+  ash.style.left = Math.random() * 100 + '%';
+  ash.style.animationDuration = (1 + Math.random()*3) + 's';
+  ash.style.opacity = Math.random();
+  ashContainer.appendChild(ash);
+  setTimeout(() => ash.remove(), 4000);
+}
+setInterval(createAsh, 150);
+</script>
+  
 </body>
 </html>
