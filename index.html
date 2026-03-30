@@ -794,10 +794,26 @@ a, button, .tag, .service-item, .main-box, .review-card {
 }
 
 /* Cursor grow on interactive hover */
-.interactive-hover:hover ~ #cursor {
-  transform: translate(-50%, -50%) scale(1.8);
-}
+<script>
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
 
+document.addEventListener('mousemove', e => {
+  cursor.style.top = e.clientY + 'px';
+  cursor.style.left = e.clientX + 'px';
+  ring.style.top = e.clientY + 'px';
+  ring.style.left = e.clientX + 'px';
+});
+
+// Hover grow effect
+document.querySelectorAll('a, button, .service-item, .tag').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(1.8)';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+  
 /* Fade-in for elements inside sections */
 .section .main-box, .section .about-card, .review-card {
   opacity: 0;
