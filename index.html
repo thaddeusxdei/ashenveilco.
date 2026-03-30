@@ -767,479 +767,6 @@
 
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-t  }
-  .header-bg {
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(255,255,255,0.015) 2px,
-      rgba(255,255,255,0.015) 4px
-    );
-  }
-  .header-inner {
-    position: relative;
-    z-index: 1;
-    padding: 36px 32px 28px;
-    display: flex;
-    align-items: flex-end;
-    gap: 24px;
-  }
-  .header-avatar {
-    width: 80px; 
-    height: 80px;
-    border: 1px solid var(--border);
-    background: var(--dim);
-    flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
-    background-image: url("https://image2url.com/r2/default/images/1774878032678-96a4ac67-33d2-4646-9c7b-62b2bdbc535c.jpg");
-    background-size: cover;
-    background-position: center;
-  }
-
-  .header-avatar::after {
-    content: '';
-    display: none;
-  }
-  
-  .header-text h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 52px;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    color: var(--white);
-  }
-  .header-text p {
-    font-size: 11px;
-    color: var(--grey);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-
-  /* ASH PARTICLES */
-  .ash-particles {
-    position: absolute;
-    top: 0; right: 0;
-    width: 200px; height: 100%;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .ash {
-    position: absolute;
-    width: 2px; height: 2px;
-    background: var(--accent);
-    border-radius: 50%;
-    animation: ashFall linear infinite;
-    opacity: 0;
-  }
-  @keyframes ashFall {
-    0% { transform: translateY(-10px) translateX(0); opacity: 0; }
-    10% { opacity: 0.6; }
-    90% { opacity: 0.2; }
-    100% { transform: translateY(120px) translateX(-20px); opacity: 0; }
-  }
-
-  /* NAVTABS */
-  .navtabs {
-    display: flex;
-    border-bottom: 1px solid var(--border);
-    background: var(--dim);
-  }
-  .navtabs a {
-    flex: 1;
-    text-align: center;
-    padding: 10px 6px;
-    font-family: 'Special Elite', serif;
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-decoration: none;
-    color: var(--grey);
-    border-right: 1px solid var(--border);
-    transition: all 0.2s;
-    text-transform: uppercase;
-  }
-  .navtabs a:last-child { border-right: none; }
-  .navtabs a:hover, .navtabs a.active {
-    background: var(--black);
-    color: var(--white);
-  }
-
-  /* SECTIONS */
-  .section {
-    border-bottom: 1px solid var(--border);
-    padding: 28px 32px;
-    display: none;
-    animation: fadeIn 0.3s ease;
-  }
-  .section.active { display: block; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-  .section-label {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    letter-spacing: 0.1em;
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .section-label::before {
-    content: '';
-    display: inline-block;
-    width: 6px; height: 6px;
-    background: var(--white);
-    border-radius: 50%;
-  }
-
-  /* MAIN SECTION */
-  .main-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-  .main-box {
-    border: 1px solid var(--border);
-    padding: 16px;
-    background: var(--dim);
-  }
-  .main-box h3 {
-    font-family: 'Special Elite', serif;
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--grey);
-    margin-bottom: 8px;
-  }
-  .main-box p {
-    line-height: 1.7;
-    color: var(--accent);
-    font-size: 12px;
-  }
-  .main-full {
-    grid-column: 1 / -1;
-  }
-  .tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .tag {
-    border: 1px solid var(--border);
-    padding: 3px 10px;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--grey);
-  }
-  .tag:hover { border-color: var(--accent); color: var(--white); }
-
-  /* ABOUT SECTION */
-  .about-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.4fr;
-    gap: 20px;
-  }
-  .about-card {
-    border: 1px solid var(--border);
-    padding: 18px;
-    background: var(--dim);
-  }
-  .about-card .name {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
-    letter-spacing: 0.08em;
-  }
-  .about-card .handle {
-    font-size: 11px;
-    color: var(--grey);
-    margin-top: 2px;
-    letter-spacing: 0.1em;
-  }
-  .about-bio {
-    margin-top: 14px;
-    line-height: 1.8;
-    color: var(--accent);
-    font-size: 12px;
-  }
-  .contact-list { list-style: none; margin-top: 10px; }
-  .contact-list li {
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .contact-list li:last-child { border-bottom: none; }
-  .contact-list a {
-    color: var(--white);
-    text-decoration: none;
-    letter-spacing: 0.05em;
-  }
-  .contact-list a:hover { text-decoration: underline; color: var(--accent); }
-  .contact-label { color: var(--grey); font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; }
-
-  /* SERVICE SECTION */
-  .service-list { display: flex; flex-direction: column; gap: 2px; }
-  .service-item {
-    border: 1px solid var(--border);
-    padding: 14px 18px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    transition: all 0.2s;
-    cursor: default;
-    background: var(--dim);
-  }
-  .service-item:hover {
-    border-color: var(--accent);
-    background: #1e1e1e;
-  }
-  .service-name {
-    font-family: 'Special Elite', serif;
-    font-size: 13px;
-    letter-spacing: 0.05em;
-  }
-  .service-desc {
-    font-size: 11px;
-    color: var(--grey);
-    margin-top: 3px;
-    line-height: 1.5;
-  }
-  .service-price {
-    text-align: right;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 16px;
-    letter-spacing: 0.05em;
-    color: var(--white);
-  }
-  .service-price span {
-    display: block;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--grey);
-    letter-spacing: 0.1em;
-  }
-  .service-note {
-    margin-top: 16px;
-    padding: 12px 16px;
-    border-left: 2px solid var(--border);
-    font-size: 11px;
-    color: var(--grey);
-    line-height: 1.7;
-  }
-
-  /* PRICING */
-  .pricing-note {
-    border: 1px solid var(--border);
-    padding: 16px 20px;
-    margin-bottom: 20px;
-    background: var(--dim);
-    font-size: 12px;
-    line-height: 1.8;
-    color: var(--accent);
-  }
-  .pricing-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-  }
-  .pricing-table th {
-    font-family: 'Special Elite', serif;
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--grey);
-    padding: 10px 14px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-  .pricing-table td {
-    padding: 12px 14px;
-    border-bottom: 1px solid var(--border);
-    color: var(--accent);
-    vertical-align: top;
-    line-height: 1.6;
-  }
-  .pricing-table tr:hover td { background: var(--dim); color: var(--white); }
-  .pricing-table .price-php {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 17px;
-    color: var(--white);
-    display: block;
-    letter-spacing: 0.04em;
-  }
-  .pricing-table .price-usd {
-    font-size: 10px;
-    color: var(--grey);
-    letter-spacing: 0.08em;
-  }
-
-  /* REVIEWS */
-  .review-form-wrap {
-    border: 1px solid var(--border);
-    padding: 20px;
-    background: var(--dim);
-    margin-bottom: 24px;
-  }
-  .review-form-wrap h3 {
-    font-family: 'Special Elite', serif;
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--grey);
-    margin-bottom: 14px;
-  }
-  .form-row { margin-bottom: 12px; }
-  .form-row label {
-    display: block;
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--grey);
-    margin-bottom: 5px;
-  }
-  .form-row input, .form-row textarea, .form-row select {
-    width: 100%;
-    background: var(--black);
-    border: 1px solid var(--border);
-    color: var(--white);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    padding: 9px 12px;
-    outline: none;
-    transition: border-color 0.2s;
-    resize: none;
-  }
-  .form-row input:focus, .form-row textarea:focus, .form-row select:focus {
-    border-color: var(--accent);
-  }
-  .form-row select option { background: var(--black); }
-  .stars-input { display: flex; gap: 4px; margin-top: 4px; }
-  .star-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--grey);
-    width: 30px; height: 30px;
-    cursor: none;
-    font-size: 14px;
-    transition: all 0.15s;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .star-btn:hover, .star-btn.active {
-    border-color: var(--white);
-    color: var(--white);
-    background: var(--mid);
-  }
-  .submit-btn {
-    background: var(--white);
-    color: var(--black);
-    border: none;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 15px;
-    letter-spacing: 0.15em;
-    padding: 10px 28px;
-    cursor: none;
-    transition: all 0.2s;
-    margin-top: 4px;
-  }
-  .submit-btn:hover { background: var(--accent); }
-
-  .reviews-list { display: flex; flex-direction: column; gap: 10px; }
-  .review-card {
-    border: 1px solid var(--border);
-    padding: 16px 18px;
-    background: var(--dim);
-    animation: fadeIn 0.3s ease;
-  }
-  .review-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 8px;
-  }
-  .review-name {
-    font-family: 'Special Elite', serif;
-    font-size: 13px;
-    letter-spacing: 0.05em;
-  }
-  .review-service-tag {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--grey);
-    border: 1px solid var(--border);
-    padding: 2px 8px;
-  }
-  .review-stars { color: var(--white); font-size: 12px; margin-bottom: 6px; }
-  .review-text { font-size: 12px; color: var(--accent); line-height: 1.7; }
-  .review-date { font-size: 10px; color: var(--grey); margin-top: 8px; letter-spacing: 0.05em; }
-  .no-reviews {
-    text-align: center;
-    padding: 32px;
-    color: var(--grey);
-    font-size: 12px;
-    border: 1px dashed var(--border);
-    letter-spacing: 0.08em;
-  }
-
-  /* FAQ */
-  .faq-list { display: flex; flex-direction: column; gap: 2px; }
-  .faq-item {
-    border: 1px solid var(--border);
-    background: var(--dim);
-    overflow: hidden;
-  }
-  .faq-q {
-    padding: 14px 18px;
-    font-family: 'Special Elite', serif;
-    font-size: 13px;
-    letter-spacing: 0.03em;
-    cursor: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: background 0.2s;
-  }
-  .faq-q:hover { background: #1e1e1e; }
-  .faq-toggle {
-    font-size: 16px;
-    color: var(--grey);
-    line-height: 1;
-    transition: transform 0.2s;
-  }
-  .faq-item.open .faq-toggle { transform: rotate(45deg); color: var(--white); }
-  .faq-a {
-    display: none;
-    padding: 0 18px 14px;
-    font-size: 12px;
-    color: var(--grey);
-    line-height: 1.8;
-    border-top: 1px solid var(--border);
-  }
-  .faq-item.open .faq-a { display: block; padding-top: 14px; }
-
-  /* FOOTER */
-  .footer {
-    padding: 14px 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 10px;
-    color: var(--grey);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  /* SCROLLBAR */
-  ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: var(--black); }
   ::-webkit-scrollbar-thumb { background: var(--border); }
   ::-webkit-scrollbar-thumb:hover { background: var(--grey); }
@@ -1769,47 +1296,282 @@
 
 </div><!-- end .window -->
 
+<script>
+  // Safe stubs — module scripts are deferred so onclick handlers can fire
+  // before reviews-manager.js has executed. These placeholders prevent
+  // ReferenceError; reviews-manager overwrites them with real implementations.
+  ['setRating','submitReview','deleteReview','toggleReaction',
+   'submitReply','deleteReply','toggleReplies','loginAdmin','logoutAdmin'
+  ].forEach(function(fn) {
+    window[fn] = window[fn] || function() {
+      var args = arguments;
+      window.addEventListener('reviewsModuleReady', function() {
+        if (typeof window[fn] === 'function') window[fn].apply(null, args);
+      }, { once: true });
+    };
+  });
+</script>
 <script src="firebase-config.js" type="module"></script>
 <script src="reviews-manager.js" type="module"></script>
+<script type="module">
+  // Signal that reviews-manager.js has finished executing
+  window.dispatchEvent(new Event('reviewsModuleReady'));
+</script>
 <script>
-  // CURSOR
+  /* ════════════════════════════════════════════════
+     ① BG CANVAS — Drifting Ember Vignette
+  ════════════════════════════════════════════════ */
+  (function() {
+    const canvas = document.createElement('canvas');
+    canvas.id = 'bgCanvas';
+    document.body.insertBefore(canvas, document.body.firstChild);
+    const ctx = canvas.getContext('2d');
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const embers = Array.from({ length: 35 }, () => ({
+      x:        Math.random() * window.innerWidth,
+      y:        Math.random() * window.innerHeight,
+      r:        Math.random() * 2 + 1,
+      speed:    Math.random() * 0.4 + 0.1,
+      alpha:    Math.random() * 0.04 + 0.04,
+      sway:     Math.random() * 30  + 20,
+      period:   Math.random() * 4   + 4,
+      phase:    Math.random() * Math.PI * 2,
+      drift:    (Math.random() - 0.5) * 0.3,
+    }));
+
+    let t = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      t += 0.016;
+      embers.forEach(e => {
+        e.y -= e.speed;
+        e.x += e.drift + Math.sin(t / e.period + e.phase) * 0.4;
+        if (e.y < -4) {
+          e.y = canvas.height + 4;
+          e.x = Math.random() * canvas.width;
+        }
+        if (e.x < -4) e.x = canvas.width + 4;
+        if (e.x > canvas.width + 4) e.x = -4;
+
+        const ox = e.sway * Math.sin(t / e.period + e.phase);
+        ctx.beginPath();
+        ctx.arc(e.x + ox, e.y, e.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(200,196,188,${e.alpha})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
+
+  /* ════════════════════════════════════════════════
+     CURSOR (original preserved + ⑩ ASH TRAIL)
+  ════════════════════════════════════════════════ */
   const cursor = document.getElementById('cursor');
-  const ring = document.getElementById('cursor-ring');
+  const ring   = document.getElementById('cursor-ring');
+
+  // ⑩ rolling position history for trail
+  const trailPositions = [];
+  const MAX_TRAIL = 3;
+  const trailDots  = [];
+
+  for (let i = 0; i < MAX_TRAIL; i++) {
+    const d = document.createElement('div');
+    d.style.cssText = `
+      position:fixed; width:4px; height:4px;
+      background:rgba(200,196,188,0.25); border-radius:50%;
+      pointer-events:none; z-index:9996;
+      transform:translate(-50%,-50%);
+      transition:opacity 0.12s ease;
+      opacity:0;
+    `;
+    document.body.appendChild(d);
+    trailDots.push(d);
+  }
+
+  let lastX = 0, lastY = 0, trailTick = 0;
   document.addEventListener('mousemove', e => {
     cursor.style.left = e.clientX + 'px';
-    cursor.style.top = e.clientY + 'px';
-    ring.style.left = e.clientX + 'px';
-    ring.style.top = e.clientY + 'px';
+    cursor.style.top  = e.clientY + 'px';
+    ring.style.left   = e.clientX + 'px';
+    ring.style.top    = e.clientY + 'px';
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    const speed = Math.sqrt(dx*dx + dy*dy);
+    lastX = e.clientX; lastY = e.clientY;
+
+    trailPositions.unshift({ x: e.clientX, y: e.clientY });
+    if (trailPositions.length > MAX_TRAIL + 4) trailPositions.pop();
+
+    if (speed > 4) {
+      trailDots.forEach((dot, i) => {
+        const pos = trailPositions[i + 2];
+        if (!pos) return;
+        dot.style.left    = pos.x + 'px';
+        dot.style.top     = pos.y + 'px';
+        dot.style.opacity = (0.25 - i * 0.07).toString();
+        clearTimeout(dot._hide);
+        dot._hide = setTimeout(() => { dot.style.opacity = '0'; }, 80 + i * 30);
+      });
+    }
   });
 
-  // ASH PARTICLES
+  /* ════════════════════════════════════════════════
+     ASH PARTICLES (original preserved)
+  ════════════════════════════════════════════════ */
   const ashContainer = document.getElementById('ashParticles');
   for (let i = 0; i < 18; i++) {
     const p = document.createElement('div');
     p.className = 'ash';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.width = p.style.height = (Math.random() * 2 + 1) + 'px';
+    p.style.left            = Math.random() * 100 + '%';
+    p.style.width           = p.style.height = (Math.random() * 2 + 1) + 'px';
     p.style.animationDuration = (Math.random() * 3 + 2) + 's';
-    p.style.animationDelay = (Math.random() * 4) + 's';
-    p.style.opacity = Math.random() * 0.5;
+    p.style.animationDelay  = (Math.random() * 4) + 's';
+    p.style.opacity         = Math.random() * 0.5;
     ashContainer.appendChild(p);
   }
 
-  // TABS
+  /* ════════════════════════════════════════════════
+     ⑤ TABS — Ash Wipe Transition
+     + ⑦ Service item stagger reveal
+  ════════════════════════════════════════════════ */
+  let _currentSection = document.querySelector('.section.active');
+  let _transitioning  = false;
+
   function showSection(id, el) {
     event.preventDefault();
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    if (_transitioning) return;
+
+    const incoming = document.getElementById(id);
+    const outgoing = _currentSection;
+
+    if (outgoing === incoming) return;
+
+    _transitioning = true;
+
+    // remove active ink from all tabs
     document.querySelectorAll('.navtabs a').forEach(a => a.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
     el.classList.add('active');
+
+    if (outgoing) {
+      outgoing.classList.add('ash-out');
+      setTimeout(() => {
+        outgoing.classList.remove('active', 'ash-out');
+
+        // Bring in new section
+        incoming.classList.add('active', 'ash-in');
+        _currentSection = incoming;
+
+        // ⑦ Service item stagger
+        if (id === 'service') {
+          const items = incoming.querySelectorAll('.service-item');
+          items.forEach((item, i) => {
+            item.classList.remove('stagger-show');
+            item.classList.add('stagger-hidden');
+            setTimeout(() => {
+              item.classList.add('stagger-show');
+            }, i * 60);
+          });
+        }
+
+        setTimeout(() => {
+          incoming.classList.remove('ash-in');
+          _transitioning = false;
+        }, 300);
+      }, 190);
+    } else {
+      incoming.classList.add('active', 'ash-in');
+      _currentSection = incoming;
+      setTimeout(() => {
+        incoming.classList.remove('ash-in');
+        _transitioning = false;
+      }, 300);
+    }
   }
 
-  // FAQ
+  /* ════════════════════════════════════════════════
+     ⑨ FAQ — smoke expand (max-height + opacity)
+  ════════════════════════════════════════════════ */
   function toggleFaq(el) {
     const item = el.closest('.faq-item');
     item.classList.toggle('open');
   }
-  
+
+  /* ════════════════════════════════════════════════
+     ④ GLITCH ON LOAD — header h1
+  ════════════════════════════════════════════════ */
+  function glitchTitle() {
+    const h1      = document.querySelector('.header-text h1');
+    const original = h1.textContent;
+    const glyphSet = '▓░▒█▄▀╬╪╫▌▐║═╗╚╔╩╦╠╣';
+    const duration = 600;
+    const interval = 40;
+    let elapsed = 0;
+
+    const glitchTimer = setInterval(() => {
+      elapsed += interval;
+      let chars = original.split('');
+      // pick 2-3 random positions
+      const positions = [];
+      const count = 2 + Math.floor(Math.random() * 2);
+      while (positions.length < count) {
+        const pos = Math.floor(Math.random() * chars.length);
+        if (chars[pos] !== ' ' && !positions.includes(pos)) positions.push(pos);
+      }
+      positions.forEach(pos => {
+        chars[pos] = glyphSet[Math.floor(Math.random() * glyphSet.length)];
+      });
+      h1.textContent = chars.join('');
+
+      if (elapsed >= duration) {
+        clearInterval(glitchTimer);
+        h1.textContent = original;
+      }
+    }, interval);
+  }
+
+  /* ════════════════════════════════════════════════
+     ⑫ PAGE LOAD ENTRANCE — staggered rise
+  ════════════════════════════════════════════════ */
+  document.addEventListener('DOMContentLoaded', () => {
+    const win      = document.querySelector('.window');
+    const titlebar = document.querySelector('.titlebar');
+    const h1       = document.querySelector('.header-text h1');
+    const hp       = document.querySelector('.header-text p');
+    const navtabs  = document.querySelector('.navtabs');
+
+    // .window rises
+    requestAnimationFrame(() => {
+      win.classList.add('loaded');
+    });
+
+    // .titlebar fades in after 200ms
+    setTimeout(() => titlebar.classList.add('loaded'), 200);
+
+    // h1 fades after 350ms, p after 430ms
+    setTimeout(() => {
+      h1.classList.add('loaded');
+      glitchTitle();
+    }, 350);
+    setTimeout(() => hp.classList.add('loaded'), 430);
+
+    // navtabs slides after 500ms
+    setTimeout(() => navtabs.classList.add('loaded'), 500);
+
+    // initial section ash-in
+    if (_currentSection) {
+      _currentSection.classList.add('ash-in');
+      setTimeout(() => _currentSection.classList.remove('ash-in'), 400);
+    }
+  });
 </script>
 </body>
 </html>
