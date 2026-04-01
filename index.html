@@ -912,8 +912,15 @@ body::after {
 
 <canvas id="bgCanvas"></canvas>
 <div id="lightbox"><button id="lightbox-close">✕</button><img id="lightbox-img" src="" alt=""/></div>
-<div id="adminControls"></div>
 <div id="cursor"></div>
+
+<!-- ADMIN PANEL — always in DOM, hidden via CSS, shown by typing "ashenveil" -->
+<div id="adminControls">
+  <div id="adminControls-inner">
+    <button class="admin-login-btn" id="adminLoginBtn" onclick="loginAdmin()">Admin Login</button>
+    <button class="admin-logout-btn" id="adminLogoutBtn" onclick="logoutAdmin()" style="display:none">Logout</button>
+  </div>
+</div>
 
 <div class="window">
 
@@ -1476,35 +1483,89 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 /* ══════════════════════════════════════════════════════
-   ADMIN TRIGGER — type "ashenveil" or long-press corner
+   ADMIN TRIGGER
+   Desktop: type "ashenveil" anywhere (not in an input)
+   Mobile:  long-press bottom-right corner 2s
 ══════════════════════════════════════════════════════ */
 (function(){
-  const TRIGGER='ashenveil'; let buf='';
-  document.addEventListener('keydown',e=>{
-    buf=(buf+e.key).slice(-TRIGGER.length);
-    if(buf.toLowerCase()===TRIGGER){
-      document.getElementById('adminControls').classList.toggle('visible');
+  const TRIGGER = 'ashenveil';
+  let buf = '';
+
+  function toggleAdminPanel(){
+    const el = document.getElementById('adminControls');
+    el.classList.toggle('visible');
+  }
+
+  document.addEventListener('keydown', e => {
+    /* Don't capture when user is typing in an input/textarea */
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+    buf = (buf + e.key).slice(-TRIGGER.length);
+    if(buf.toLowerCase() === TRIGGER){
+      buf = '';
+      toggleAdminPanel();
     }
   });
-  let mt=null;
-  document.addEventListener('touchstart',e=>{
-    const t=e.touches[0];
-    if(t.clientX>window.innerWidth-90&&t.clientY>window.innerHeight-90)
-      mt=setTimeout(()=>document.getElementById('adminControls').classList.toggle('visible'),2000);
-  },{passive:true});
-  document.addEventListener('touchend',()=>clearTimeout(mt),{passive:true});
+
+  /* Mobile: long-press bottom-right 2s */
+  let mt = null;
+  document.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    if(t.clientX > window.innerWidth - 100 && t.clientY > window.innerHeight - 100){
+      mt = setTimeout(toggleAdminPanel, 2000);
+    }
+  }, {passive:true});
+  document.addEventListener('touchend',   () => clearTimeout(mt), {passive:true});
+  document.addEventListener('touchmove',  () => clearTimeout(mt), {passive:true});
 })();
 
 /* ══════════════════════════════════════════════════════
    PROOF BOARD
 ══════════════════════════════════════════════════════ */
 let _proofIsAdmin=false;
+let _proofListener=null; /* track onSnapshot unsubscribe */
 
 function updateProofAdmin(isAdmin){
   _proofIsAdmin=isAdmin;
   const ua=document.getElementById('proofUploadArea');
   if(ua) isAdmin?ua.classList.add('visible'):ua.classList.remove('visible');
-  renderProofs();
+  /* Re-render so admin buttons show/hide */
+  if(_proofListener){ _proofListener(); _proofListener=null; }
+  waitForDb().then(()=>renderProofs());
+}
+
+/* Reliably wait for Firebase db to be ready */
+function waitForDb(){
+  return new Promise(res=>{
+    if(window._db) return res(window._db);
+    const check=setInterval(()=>{
+      if(window._db){ clearInterval(check); res(window._db); }
+    },100);
+    setTimeout(()=>{ clearInterval(check); res(null); },10000);
+  });
+}
+
+/* Compress image to canvas, return blob */
+function compressImage(file, maxW=1400, maxH=1400, quality=0.82){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      URL.revokeObjectURL(url);
+      let {width:w,height:h}=img;
+      if(w>maxW||h>maxH){
+        const ratio=Math.min(maxW/w,maxH/h);
+        w=Math.round(w*ratio); h=Math.round(h*ratio);
+      }
+      const c=document.createElement('canvas');
+      c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(blob=>blob?res(blob):rej(new Error('Compression failed')),'image/jpeg',quality);
+    };
+    img.onerror=rej;
+    img.src=url;
+  });
 }
 
 async function uploadProof(){
@@ -1514,19 +1575,31 @@ async function uploadProof(){
   const status=document.getElementById('proofStatus');
   if(!fi||!fi.files||!fi.files[0]){status.textContent='⚠ Select an image first.';return;}
   const file=fi.files[0];
-  if(file.size>5*1024*1024){status.textContent='⚠ Image must be under 5MB.';return;}
+  if(!file.type.startsWith('image/')){status.textContent='⚠ File must be an image.';return;}
 
-  status.textContent='Uploading…';
+  status.textContent='Compressing…';
 
   try{
-    /* Convert to base64 data URL (stored in Firestore as string) */
+    /* Compress first so it fits in Firestore (< 1MB limit) */
+    const blob=await compressImage(file);
+
+    status.textContent='Reading…';
+    /* Read compressed blob as base64 */
     const dataUrl=await new Promise((res,rej)=>{
       const fr=new FileReader();
       fr.onload=()=>res(fr.result);
       fr.onerror=rej;
-      fr.readAsDataURL(file);
+      fr.readAsDataURL(blob);
     });
 
+    /* Firestore doc limit is ~1MB. base64 overhead is ~33%.
+       Check compressed size before writing. */
+    if(dataUrl.length > 900000){
+      status.textContent='⚠ Image still too large after compression. Try a smaller image.';
+      return;
+    }
+
+    status.textContent='Saving…';
     const db=window._db;
     const {collection,addDoc,serverTimestamp}=await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
     await addDoc(collection(db,'proofs'),{
@@ -1535,13 +1608,15 @@ async function uploadProof(){
       ts:        serverTimestamp(),
       views:     0,
     });
-    status.textContent='✓ Proof attached.';
+    status.textContent='✓ Proof attached successfully.';
     fi.value='';
     document.getElementById('proofCaption').value='';
-    document.getElementById('proofDropZone').querySelector('span').textContent='Drop image here or click to browse';
+    const span=document.getElementById('proofDropZone').querySelector('span');
+    if(span) span.textContent='Drop image here or click to browse';
+    setTimeout(()=>{status.textContent='';},3000);
   }catch(err){
-    console.error(err);
-    status.textContent='✗ Upload failed: '+err.message;
+    console.error('Upload error:',err);
+    status.textContent='✗ Failed: '+err.message;
   }
 }
 
@@ -1567,8 +1642,10 @@ async function incrementView(id){
   const viewed=sessionStorage.getItem('viewed_'+id);
   if(viewed)return;
   sessionStorage.setItem('viewed_'+id,'1');
-  const {doc,updateDoc,increment}=await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
-  await updateDoc(doc(db,'proofs',id),{views:increment(1)}).catch(()=>{});
+  try{
+    const {doc,updateDoc,increment}=await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
+    await updateDoc(doc(db,'proofs',id),{views:increment(1)});
+  }catch(e){ /* silent — view count non-critical */ }
 }
 
 function openLightbox(src,id){
@@ -1579,21 +1656,21 @@ function openLightbox(src,id){
 }
 
 async function renderProofs(){
-  const db=window._db; if(!db)return;
+  const db=await waitForDb(); if(!db)return;
   const grid=document.getElementById('proofGrid');
+  if(!grid)return;
   const empty=document.getElementById('proofEmpty');
   const {collection,query,orderBy,onSnapshot}=await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
 
   const q=query(collection(db,'proofs'),orderBy('ts','desc'));
-  onSnapshot(q,snap=>{
+  _proofListener=onSnapshot(q,snap=>{
     if(snap.empty){
-      empty.style.display='block';
       grid.innerHTML='';
-      grid.appendChild(empty);
+      if(empty){empty.style.display='block';grid.appendChild(empty);}
       grid.classList.remove('has-content');
       return;
     }
-    empty.style.display='none';
+    if(empty) empty.style.display='none';
     grid.innerHTML='';
     grid.classList.add('has-content');
 
@@ -1606,29 +1683,47 @@ async function renderProofs(){
       const card=document.createElement('div');
       card.className='proof-card';
       card.style.animationDelay=(idx*.06)+'s';
-      card.innerHTML=`
-        <div class="proof-img-wrap">
-          <img src="${d.imageData}" alt="${d.caption||'Proof'}" loading="lazy"
-               onclick="openLightbox('${d.imageData.substring(0,30)}…','${id}')"
-               style="cursor:zoom-in"/>
-        </div>
-        <div class="proof-meta">
-          <div class="proof-caption">${d.caption||''}</div>
-          <div class="proof-right">
-            <div class="proof-date">${dateStr} · ${timeStr}</div>
-            <div class="proof-views">${d.views||0} views</div>
-          </div>
-        </div>
-        <div class="proof-admin-btns ${_proofIsAdmin?'visible':''}">
-          <button class="proof-edit-btn" onclick="editProofCaption('${id}','${(d.caption||'').replace(/'/g,"\\'")}')">Edit Caption</button>
-          <button class="proof-del-btn"  onclick="deleteProof('${id}')">Delete</button>
-        </div>
-      `;
-      /* Fix lightbox — pass real src */
-      const img=card.querySelector('img');
-      img.onclick=()=>openLightbox(d.imageData,id);
+
+      const imgWrap=document.createElement('div');
+      imgWrap.className='proof-img-wrap';
+      const img=document.createElement('img');
+      img.src=d.imageData;
+      img.alt=d.caption||'Proof';
+      img.loading='lazy';
+      img.style.cursor='zoom-in';
+      img.addEventListener('click',()=>openLightbox(d.imageData,id));
+      imgWrap.appendChild(img);
+
+      const meta=document.createElement('div');
+      meta.className='proof-meta';
+      meta.innerHTML=`
+        <div class="proof-caption">${d.caption||''}</div>
+        <div class="proof-right">
+          <div class="proof-date">${dateStr} · ${timeStr}</div>
+          <div class="proof-views" id="pv-${id}">${d.views||0} views</div>
+        </div>`;
+
+      const adminBtns=document.createElement('div');
+      adminBtns.className='proof-admin-btns'+(_proofIsAdmin?' visible':'');
+      const editBtn=document.createElement('button');
+      editBtn.className='proof-edit-btn';
+      editBtn.textContent='Edit Caption';
+      editBtn.addEventListener('click',()=>editProofCaption(id,d.caption||''));
+      const delBtn=document.createElement('button');
+      delBtn.className='proof-del-btn';
+      delBtn.textContent='Delete';
+      delBtn.addEventListener('click',()=>deleteProof(id));
+      adminBtns.appendChild(editBtn);
+      adminBtns.appendChild(delBtn);
+
+      card.appendChild(imgWrap);
+      card.appendChild(meta);
+      card.appendChild(adminBtns);
       grid.appendChild(card);
     });
+  }, err=>{
+    grid.innerHTML=`<div class="proof-empty">Could not load proofs: ${err.message}<br><br>
+    <span style="font-size:10px;opacity:.6;">Make sure your Firestore rules allow read on /proofs</span></div>`;
   });
 }
 
@@ -1756,56 +1851,87 @@ async function renderAnalytics(db,collection,query,where,orderBy,limit,getDocs,o
     });
 
   }catch(e){
-    panel.innerHTML=`<div style="color:var(--grey);font-size:11px;">Analytics unavailable: ${e.message}<br><br>
-    <span style="font-size:10px;opacity:.7;">Fix: add these Firestore rules —<br>
-    <code style="display:block;margin-top:6px;padding:8px;background:var(--black);font-size:10px;">
-    match /visits/{id} { allow read, write: if true; }<br>
-    match /presence/{id} { allow read, write: if true; }<br>
-    match /proofs/{id} { allow read, write: if true; }
-    </code></span></div>`;
+    panel.innerHTML=`<div style="color:var(--grey);font-size:11px;line-height:1.9;">
+    Analytics unavailable: <span style="color:#ff8a8a">${e.message}</span><br><br>
+    <strong style="color:var(--accent);font-family:'Syncopate',sans-serif;font-size:9px;letter-spacing:.15em;">FIX: Replace your Firestore rules with this:</strong>
+    <pre style="margin-top:10px;padding:14px;background:var(--black);font-size:10px;line-height:1.8;border:1px solid var(--border);overflow-x:auto;white-space:pre-wrap;">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /reviews/{document=**} {
+      allow read, create: if true;
+      allow delete, update: if true;
+    }
+    match /visits/{id} {
+      allow read, write: if true;
+    }
+    match /presence/{id} {
+      allow read, write: if true;
+    }
+    match /proofs/{id} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+    <span style="font-size:10px;opacity:.6;">Go to Firebase Console → Firestore → Rules → paste above → Publish</span>
+    </div>`;
   }
 }
 
 /* ══════════════════════════════════════════════════════
    Patch loginAdmin / logoutAdmin to trigger analytics + proofs
+   Also override reviews-manager's updateAdminUI so it doesn't
+   wipe our static admin button HTML
 ══════════════════════════════════════════════════════ */
 window.addEventListener('reviewsModuleReady',()=>{
-  const oLogin=window.loginAdmin, oLogout=window.logoutAdmin;
+  /* Neutralise reviews-manager's updateAdminUI — we handle UI ourselves */
+  window._origUpdateAdminUI = window.updateAdminUI;
+  window.updateAdminUI = function(){
+    const isAdm = sessionStorage.getItem('adminToken') === 'deid4ra';
+    const loginBtn  = document.getElementById('adminLoginBtn');
+    const logoutBtn = document.getElementById('adminLogoutBtn');
+    if(loginBtn)  loginBtn.style.display  = isAdm ? 'none'  : '';
+    if(logoutBtn) logoutBtn.style.display = isAdm ? ''      : 'none';
+  };
 
-  window.loginAdmin=async function(){
-    if(oLogin) await Promise.resolve(oLogin());
-    /* Check if admin token is now set */
-    const isAdm=sessionStorage.getItem('adminToken')==='deid4ra';
-    if(isAdm){
-      if(window._renderAnalytics) window._renderAnalytics();
-      updateProofAdmin(true);
+  const oLogin  = window.loginAdmin;
+  const oLogout = window.logoutAdmin;
+
+  window.loginAdmin = async function(){
+    const token = prompt('Enter admin token:');
+    if(!token) return;
+    if(token === 'deid4ra'){
+      sessionStorage.setItem('adminToken','deid4ra');
+      window.updateAdminUI();
+      /* Keep panel visible after login */
+      document.getElementById('adminControls').classList.add('visible');
+      waitForDb().then(()=>{
+        if(window._renderAnalytics) window._renderAnalytics();
+        updateProofAdmin(true);
+      });
+    } else {
+      alert('Invalid token.');
     }
   };
 
-  window.logoutAdmin=async function(){
-    if(oLogout) await Promise.resolve(oLogout());
-    const panel=document.getElementById('analyticsPanel');
-    panel.classList.remove('visible'); panel.innerHTML='';
+  window.logoutAdmin = async function(){
+    sessionStorage.removeItem('adminToken');
+    window.updateAdminUI();
+    const panel = document.getElementById('analyticsPanel');
+    panel.classList.remove('visible'); panel.innerHTML = '';
     updateProofAdmin(false);
   };
 
-  /* Check on load if already admin */
-  setTimeout(()=>{
-    const isAdm=sessionStorage.getItem('adminToken')==='deid4ra';
-    if(isAdm){
+  /* On page load: sync button state + check if already logged in */
+  window.updateAdminUI();
+  const isAdm = sessionStorage.getItem('adminToken') === 'deid4ra';
+  if(isAdm){
+    waitForDb().then(()=>{
       if(window._renderAnalytics) window._renderAnalytics();
       updateProofAdmin(true);
-    } else {
-      renderProofs();
-    }
-  },1200);
-},{once:true});
-
-/* Also init proofs when db becomes available even without admin */
-window.addEventListener('dbReady',()=>{
-  setTimeout(()=>{
-    if(!window._proofReady) renderProofs();
-  },800);
+    });
+  } else {
+    waitForDb().then(()=>renderProofs());
+  }
 },{once:true});
 </script>
 </body>
