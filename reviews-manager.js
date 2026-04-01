@@ -1,4 +1,16 @@
 import { db } from './firebase-config.js';
+
+import {
+  collection, addDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+import {
+  getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+
+const storage = getStorage();
+
+import { db } from './firebase-config.js';
 import {
   collection, addDoc, getDocs, deleteDoc, doc,
   query, orderBy, serverTimestamp, updateDoc, getDoc, onSnapshot
@@ -112,6 +124,36 @@ async function deleteReview(reviewId) {
     console.error(err);
     alert('Error deleting review. Check Firestore rules — make sure delete is allowed.');
   }
+}
+
+// your other functions here
+function loadReviews() {
+   ...
+}
+
+
+// PUT IMAGE UPLOAD FUNCTION HERE
+async function uploadProof() {
+
+  const fileInput = document.querySelector('.proof-drop-zone input');
+  const file = fileInput.files[0];
+
+  if (!file) {
+    alert("Select an image first");
+    return;
+  }
+
+  const storageRef = ref(storage, 'proofs/' + Date.now() + '-' + file.name);
+
+  await uploadBytes(storageRef, file);
+
+  const url = await getDownloadURL(storageRef);
+
+  await addDoc(collection(db, 'proofs'), {
+    imageUrl: url,
+    timestamp: serverTimestamp()
+  });
+
 }
 
 // ─── Reactions (heart, one per visitor) ───────────────────────────────────────
@@ -315,4 +357,22 @@ window.setRating = setRating;
 document.addEventListener('DOMContentLoaded', () => {
   checkAdminStatus();
   loadReviews();
+  
+// VISITOR TRACKING
+import { setDoc, doc, updateDoc }
+from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+const visitorId = localStorage.getItem("visitorId") || Date.now().toString();
+localStorage.setItem("visitorId", visitorId);
+
+setDoc(doc(db, "visitors", visitorId), {
+  active: true,
+  lastSeen: serverTimestamp()
+});
+
+setInterval(() => {
+  updateDoc(doc(db, "visitors", visitorId), {
+    lastSeen: serverTimestamp()
+  });
+}, 10000);
 });
