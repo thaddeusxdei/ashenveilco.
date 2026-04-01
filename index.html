@@ -488,6 +488,7 @@ body::after {
   background:none; border:1px solid var(--border); color:var(--grey);
   width:32px; height:32px; cursor:pointer; font-size:14px;
   transition:all .2s; display:flex; align-items:center; justify-content:center;
+  touch-action:manipulation;
 }
 .star-btn:hover, .star-btn.active { border-color:var(--white); color:var(--white); background:var(--mid); }
 .submit-btn {
@@ -1068,15 +1069,15 @@ body::after {
       <div class="form-row">
         <label>Rating</label>
         <div class="stars-input" id="starInput">
-          <button class="star-btn" onclick="setRating(1)">★</button>
-          <button class="star-btn" onclick="setRating(2)">★</button>
-          <button class="star-btn" onclick="setRating(3)">★</button>
-          <button class="star-btn" onclick="setRating(4)">★</button>
-          <button class="star-btn" onclick="setRating(5)">★</button>
+          <button type="button" class="star-btn" onclick="setRating(1)">★</button>
+          <button type="button" class="star-btn" onclick="setRating(2)">★</button>
+          <button type="button" class="star-btn" onclick="setRating(3)">★</button>
+          <button type="button" class="star-btn" onclick="setRating(4)">★</button>
+          <button type="button" class="star-btn" onclick="setRating(5)">★</button>
         </div>
       </div>
       <div class="form-row"><label>Your Review</label><textarea id="rev-text" rows="3" placeholder="Share your experience..." maxlength="300"></textarea></div>
-      <button class="submit-btn" onclick="submitReview()">Submit Review</button>
+      <button type="button" class="submit-btn" onclick="submitReview()">Submit Review</button>
       <div id="rev-msg" style="margin-top:11px;font-size:11px;color:var(--grey);letter-spacing:.07em;"></div>
     </div>
     <div class="reviews-list" id="reviewsList">
@@ -1132,28 +1133,57 @@ body::after {
 
 </div><!-- .window -->
 
-<!-- Firebase stubs -->
-<script>
-['setRating','submitReview','deleteReview','toggleReaction',
- 'submitReply','deleteReply','toggleReplies','loginAdmin','logoutAdmin'
-].forEach(function(fn){
-  window[fn]=window[fn]||function(){
-    var a=arguments;
-    window.addEventListener('reviewsModuleReady',function(){
-      if(typeof window[fn]==='function') window[fn].apply(null,a);
-    },{once:true});
-  };
-});
-</script>
+<!-- Firebase modules -->
 <script src="firebase-config.js" type="module"></script>
 <script src="reviews-manager.js" type="module"></script>
-<script type="module">window.dispatchEvent(new Event('reviewsModuleReady'));</script>
 
-<!-- Expose db globally -->
+<!-- Signal module ready + expose db -->
 <script type="module">
   import { db } from './firebase-config.js';
   window._db = db;
   window.dispatchEvent(new Event('dbReady'));
+  // Small delay to ensure reviews-manager has run its exports
+  setTimeout(() => window.dispatchEvent(new Event('reviewsModuleReady')), 0);
+</script>
+
+<!-- Safe global stubs — called if user clicks before module loads -->
+<script>
+(function(){
+  // Queue calls made before module is ready
+  var _queue = {};
+  var _ready = false;
+
+  function makeStub(name) {
+    window[name] = window[name] || function() {
+      if (_ready && typeof window['_real_' + name] === 'function') {
+        window['_real_' + name].apply(null, arguments);
+      } else {
+        _queue[name] = _queue[name] || [];
+        _queue[name].push(Array.from(arguments));
+      }
+    };
+  }
+
+  ['setRating','submitReview','deleteReview','toggleReaction',
+   'submitReply','deleteReply','toggleReplies'].forEach(makeStub);
+
+  window.addEventListener('reviewsModuleReady', function() {
+    _ready = true;
+    // Flush queued calls using the real implementations
+    ['setRating','submitReview','deleteReview','toggleReaction',
+     'submitReply','deleteReply','toggleReplies'].forEach(function(name) {
+      if (typeof window[name] === 'function') {
+        window['_real_' + name] = window[name];
+      }
+      if (_queue[name]) {
+        _queue[name].forEach(function(args) {
+          if (typeof window[name] === 'function') window[name].apply(null, args);
+        });
+        delete _queue[name];
+      }
+    });
+  });
+})();
 </script>
 
 <script>
