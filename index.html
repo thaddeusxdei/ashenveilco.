@@ -917,9 +917,17 @@ body::after {
 
 <!-- ADMIN PANEL — always in DOM, hidden via CSS, shown by typing "ashenveil" -->
 <div id="adminControls">
-  <div id="adminControls-inner">
+  <div id="adminControls-inner" style="display:flex;gap:8px;align-items:center;">
     <button class="admin-login-btn" id="adminLoginBtn" onclick="loginAdmin()">Admin Login</button>
     <button class="admin-logout-btn" id="adminLogoutBtn" onclick="logoutAdmin()" style="display:none">Logout</button>
+    <button id="analyticsToggleBtn" onclick="toggleAnalytics()"
+      style="display:none;background:none;border:1px solid var(--border);
+      color:var(--grey);font-family:'Syncopate',sans-serif;font-weight:400;font-size:9px;
+      letter-spacing:.14em;padding:9px 14px;cursor:pointer;transition:all .2s;"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--white)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--grey)'">
+      Analytics
+    </button>
   </div>
 </div>
 
@@ -1722,11 +1730,15 @@ async function renderProofs(){
 /* ══════════════════════════════════════════════════════
    VISITOR TRACKING + ANALYTICS
 ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════
+   VISITOR TRACKING + ANALYTICS
+   - 1 device = 1 visit count per day (localStorage)
+   - Presence tracked every session (for live count)
+   - Analytics fully realtime via onSnapshot
+══════════════════════════════════════════════════════ */
 async function initVisitorTracking(){
-  console.log('initVisitorTracking: waiting for db...');
   const db = await waitForDb();
-  if(!db){ console.error('initVisitorTracking: db unavailable after timeout'); return; }
-  console.log('initVisitorTracking: db ready, writing visit...');
+  if(!db){ console.error('initVisitorTracking: db unavailable'); return; }
 
   const pad = n => String(n).padStart(2,'0');
   const now = new Date();
@@ -1737,206 +1749,267 @@ async function initVisitorTracking(){
     return `${d.getFullYear()}-W${pad(wk)}`;
   };
 
+  /* Device ID — localStorage persists across refreshes/tabs */
+  let did = localStorage.getItem('_avc_did');
+  if(!did){
+    did = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('_avc_did', did);
+  }
+
+  /* Session ID — fresh each tab/session for presence tracking */
   let sid = sessionStorage.getItem('_avc_sid');
   if(!sid){
-    sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sid = 'ses_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     sessionStorage.setItem('_avc_sid', sid);
   }
 
   try {
     const {
       collection, addDoc, serverTimestamp,
-      doc, setDoc, deleteDoc, onSnapshot
+      doc, setDoc, getDoc, deleteDoc, onSnapshot, query, where
     } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
 
-    /* Write visit record */
-    const ref = await addDoc(collection(db,'visits'), {
-      ts:    serverTimestamp(),
-      day:   todayKey,
-      week:  getWeekKey(now),
-      month: `${now.getFullYear()}-${pad(now.getMonth()+1)}`,
-      year:  String(now.getFullYear()),
-      sid,
-    });
-    console.log('✓ Visit written to Firestore, id:', ref.id);
+    /* ── 1 DEVICE, 1 COUNT PER DAY ──
+       Check if this device already has a visit doc for today.
+       Use a deterministic doc ID = did + '_' + todayKey so we can check cheaply. */
+    const visitDocId = did + '_' + todayKey;
+    const visitRef = doc(db, 'visits', visitDocId);
+    const existing = await getDoc(visitRef);
 
-    /* Presence heartbeat every 25s */
+    if(!existing.exists()){
+      await setDoc(visitRef, {
+        ts:    serverTimestamp(),
+        day:   todayKey,
+        week:  getWeekKey(now),
+        month: `${now.getFullYear()}-${pad(now.getMonth()+1)}`,
+        year:  String(now.getFullYear()),
+        did,   /* device id */
+      });
+      console.log('✓ New visit recorded for today');
+    } else {
+      console.log('✓ Device already counted today — skipping write');
+    }
+
+    /* ── PRESENCE — write every session (not just once per device)
+       So live count shows actual open tabs/sessions ── */
     const presRef = doc(db, 'presence', sid);
-    const hb = () => setDoc(presRef, { ts: serverTimestamp(), sid })
-      .then(() => console.log('✓ Presence heartbeat ok'))
-      .catch(e => console.error('✗ Presence write failed:', e.code, e.message));
+    const hb = () => setDoc(presRef, {
+      ts: serverTimestamp(),
+      sid, did,
+      page: window.location.pathname,
+    }).catch(e => console.error('✗ Presence heartbeat failed:', e.message));
+
     hb();
-    const hbInt = setInterval(hb, 25000);
+    const hbInt = setInterval(hb, 20000);
     window.addEventListener('beforeunload', () => {
       clearInterval(hbInt);
       deleteDoc(presRef).catch(()=>{});
     });
 
-    /* Live counter — realtime presence listener */
+    /* ── LIVE COUNTER — realtime onSnapshot on presence ── */
     onSnapshot(
       collection(db, 'presence'),
       snap => {
-        const cut = Date.now() - 60000;
+        const cut = Date.now() - 45000; /* 45s cutoff — slightly longer than 20s heartbeat */
         let live = 0;
-        snap.forEach(d => { const ts = d.data().ts; if(ts?.toMillis?.() > cut) live++; });
+        snap.forEach(d => {
+          const ts = d.data().ts;
+          if(ts?.toMillis?.() > cut) live++;
+        });
         window._liveCount = live;
-        const el = document.getElementById('liveCount');
-        if(el) el.textContent = live;
-        console.log('Live visitors:', live);
+        /* Update all liveCount elements (panel may re-render) */
+        document.querySelectorAll('.js-live-count').forEach(el => el.textContent = live);
+        console.log('Live:', live);
       },
-      e => console.error('✗ Presence snapshot failed:', e.code, e.message)
+      e => console.error('✗ Presence snapshot error:', e.message)
     );
 
-    /* Expose analytics renderer for admin */
+    /* Expose analytics renderer */
     window._renderAnalytics = () => renderAnalytics(db);
 
     /* Init proof board */
     window._proofReady = true;
     renderProofs();
 
-    /* If admin session is still active, show analytics immediately */
+    /* If already admin, show analytics */
     if(sessionStorage.getItem('adminToken') === 'deid4ra'){
       renderAnalytics(db);
       updateProofAdmin(true);
     }
 
   } catch(e) {
-    console.error('✗ initVisitorTracking failed:', e.code, e.message, e);
+    console.error('✗ initVisitorTracking error:', e.code, e.message);
   }
 }
 
-async function renderAnalytics(db){
-  const panel = document.getElementById('analyticsPanel');
-  panel.innerHTML = '<div style="color:var(--grey);font-size:12px;padding:4px 0;">Loading analytics…</div>';
-  panel.classList.add('visible');
+let _analyticsUnsubs = [];
+function teardownAnalytics(){
+  _analyticsUnsubs.forEach(u=>{try{u();}catch(e){}});
+  _analyticsUnsubs=[];
+}
 
-  const pad = n => String(n).padStart(2,'0');
-  const now = new Date();
-  const todayKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  const getWeekKey = d => {
-    const j1 = new Date(d.getFullYear(),0,1);
-    const wk = Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
-    return `${d.getFullYear()}-W${pad(wk)}`;
-  };
-  const weekKey  = getWeekKey(now);
-  const monthKey = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  const yearKey  = String(now.getFullYear());
-
-  const RULES_MSG = `<pre style="margin-top:10px;padding:14px;background:var(--black);font-size:10px;line-height:1.9;border:1px solid var(--border);overflow-x:auto;white-space:pre-wrap;">rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /reviews/{document=**} {
-      allow read, create: if true;
-      allow delete, update: if true;
-    }
-    match /visits/{id} {
-      allow read, write: if true;
-    }
-    match /presence/{id} {
-      allow read, write: if true;
-    }
-    match /proofs/{id} {
-      allow read, write: if true;
-    }
+function toggleAnalytics(){
+  const panel=document.getElementById('analyticsPanel');
+  if(!panel) return;
+  if(panel.classList.contains('visible')){
+    teardownAnalytics();
+    panel.classList.remove('visible');
+    panel.innerHTML='';
+  } else {
+    if(window._renderAnalytics) window._renderAnalytics();
   }
-}</pre><span style="font-size:10px;opacity:.6;">Firebase Console → Firestore → Rules → paste above → Publish</span>`;
+}
+window.toggleAnalytics = toggleAnalytics;
+window.teardownAnalytics = teardownAnalytics;
 
-  try {
-    const { collection, query, where, orderBy, limit, getDocs, onSnapshot }
-      = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
-
-    const visCol = collection(db,'visits');
-
-    /* Count per period — sequential getDocs (no compound index needed) */
-    const countWhere = async (field, val) => {
-      const s = await getDocs(query(visCol, where(field,'==',val)));
-      return s.size;
-    };
-
-    const [dayCount, weekCount, monthCount, yearCount] = await Promise.all([
-      countWhere('day',   todayKey),
-      countWhere('week',  weekKey),
-      countWhere('month', monthKey),
-      countWhere('year',  yearKey),
-    ]);
-
-    /* 7-day bar chart */
-    const bars = [];
-    for(let i=6; i>=0; i--){
-      const d = new Date(now); d.setDate(d.getDate()-i);
-      const k = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-      const s = await getDocs(query(visCol, where('day','==',k)));
-      bars.push({ label: k.slice(5), count: s.size });
-    }
-    const maxBar = Math.max(...bars.map(b=>b.count), 1);
-
-    /* Recent 15 — order by ts desc (may need index first time, graceful fallback) */
-    let recentHTML = '';
-    try {
-      const rSnap = await getDocs(query(visCol, orderBy('ts','desc'), limit(15)));
-      const rows = [];
-      rSnap.forEach(d => {
-        const data = d.data();
-        const ts = data.ts ? data.ts.toDate() : new Date();
-        rows.push(`<div class="recent-item">
-          <span>${data.day||'—'}</span>
-          <span class="r-time">${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-        </div>`);
-      });
-      recentHTML = rows.length
-        ? `<div class="analytics-section-title">Recent Visits</div><div class="recent-list">${rows.join('')}</div>`
-        : '';
-    } catch(idxErr) {
-      recentHTML = `<div style="font-size:10px;color:var(--grey);margin-top:12px;">
-        Recent list needs a Firestore index. <a href="https://console.firebase.google.com" target="_blank"
-        style="color:var(--accent);">Create it in Firebase Console</a> (link appears in browser console).
-      </div>`;
-    }
-
-    panel.innerHTML = `
-      <div class="analytics-header">
-        <span>Visitor Analytics</span>
+async function renderAnalytics(db){
+  teardownAnalytics();
+  const panel=document.getElementById('analyticsPanel');
+  panel.classList.add('visible');
+  panel.innerHTML=`
+    <div class="analytics-header">
+      <span>Visitor Analytics</span>
+      <div style="display:flex;align-items:center;gap:14px;">
         <div class="analytics-live">
           <span class="live-dot"></span>
-          <span id="liveCount">${window._liveCount ?? '…'}</span>&nbsp;online now
+          <span class="js-live-count">\${window._liveCount??'…'}</span>&nbsp;online now
         </div>
+        <button onclick="toggleAnalytics()" style="background:none;border:1px solid var(--border);
+          color:var(--grey);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;
+          padding:5px 11px;cursor:pointer;transition:all .2s;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--white)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--grey)'">Hide ✕</button>
       </div>
-      <div class="analytics-grid">
-        <div class="analytics-card"><div class="a-num">${dayCount}</div><div class="a-label">Today</div></div>
-        <div class="analytics-card"><div class="a-num">${weekCount}</div><div class="a-label">This Week</div></div>
-        <div class="analytics-card"><div class="a-num">${monthCount}</div><div class="a-label">This Month</div></div>
-        <div class="analytics-card"><div class="a-num">${yearCount}</div><div class="a-label">This Year</div></div>
-      </div>
-      <div class="analytics-section-title">Last 7 Days</div>
-      <div class="analytics-chart">
-        ${bars.map(b=>`<div class="analytics-bar"
-          style="height:${Math.max(3,Math.round(b.count/maxBar*58))}px"
-          title="${b.label}: ${b.count} visit${b.count!==1?'s':''}"></div>`).join('')}
-      </div>
-      <div class="analytics-bar-label">
-        <span>${bars[0]?.label||''}</span><span>${bars[bars.length-1]?.label||''}</span>
-      </div>
-      ${recentHTML}
-    `;
+    </div>
+    <div class="analytics-grid">
+      <div class="analytics-card"><div class="a-num" id="a-today">…</div><div class="a-label">Today</div></div>
+      <div class="analytics-card"><div class="a-num" id="a-week">…</div><div class="a-label">This Week</div></div>
+      <div class="analytics-card"><div class="a-num" id="a-month">…</div><div class="a-label">This Month</div></div>
+      <div class="analytics-card"><div class="a-num" id="a-year">…</div><div class="a-label">This Year</div></div>
+    </div>
+    <div class="analytics-section-title">Last 7 Days</div>
+    <div id="a-chart" style="display:flex;align-items:flex-end;gap:5px;height:64px;margin-bottom:7px;">
+      \${Array(7).fill('<div style="flex:1;height:3px;background:rgba(196,192,184,.1)"></div>').join('')}
+    </div>
+    <div id="a-bar-labels" style="display:flex;justify-content:space-between;font-size:9px;color:var(--grey);letter-spacing:.04em;">
+      <span></span><span></span>
+    </div>
+    <div class="analytics-section-title" style="color:#4caf50;">Currently Viewing</div>
+    <div id="a-live-list" class="recent-list" style="max-height:150px;overflow-y:auto;margin-bottom:4px;">
+      <div style="color:var(--grey);font-size:11px;padding:6px 0;">Watching…</div>
+    </div>
+    <div class="analytics-section-title">Recent Unique Visitors</div>
+    <div id="a-recent-list" class="recent-list" style="max-height:150px;overflow-y:auto;">
+      <div style="color:var(--grey);font-size:11px;padding:6px 0;">Loading…</div>
+    </div>`;
 
-    /* Live count listener while panel is open */
-    onSnapshot(collection(db,'presence'), snap => {
-      const cut = Date.now()-60000; let live=0;
-      snap.forEach(d=>{ const ts=d.data().ts; if(ts?.toMillis?.()>cut) live++; });
-      window._liveCount = live;
-      const el = document.getElementById('liveCount');
-      if(el) el.textContent = live;
+  const pad=n=>String(n).padStart(2,'0');
+  const now=new Date();
+  const todayKey=`\${now.getFullYear()}-\${pad(now.getMonth()+1)}-\${pad(now.getDate())}`;
+  const getWeekKey=d=>{
+    const j1=new Date(d.getFullYear(),0,1);
+    const wk=Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
+    return `\${d.getFullYear()}-W\${pad(wk)}`;
+  };
+  const weekKey=getWeekKey(now);
+  const monthKey=`\${now.getFullYear()}-\${pad(now.getMonth()+1)}`;
+  const yearKey=String(now.getFullYear());
+  const dayKeys=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(now); d.setDate(d.getDate()-i);
+    dayKeys.push(`\${d.getFullYear()}-\${pad(d.getMonth()+1)}-\${pad(d.getDate())}`);
+  }
+
+  try {
+    const {collection,query,where,orderBy,limit,onSnapshot}
+      =await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
+
+    const visCol=collection(db,'visits');
+    const presCol=collection(db,'presence');
+
+    /* Realtime count watchers */
+    const watchCount=(field,val,elId)=>{
+      const u=onSnapshot(query(visCol,where(field,'==',val)),
+        snap=>{const el=document.getElementById(elId);if(el)el.textContent=snap.size;},
+        e=>console.error('Count watch:',e.message));
+      _analyticsUnsubs.push(u);
+    };
+    watchCount('day',todayKey,'a-today');
+    watchCount('week',weekKey,'a-week');
+    watchCount('month',monthKey,'a-month');
+    watchCount('year',yearKey,'a-year');
+
+    /* Realtime 7-day bar chart */
+    const barCounts=new Array(7).fill(0);
+    dayKeys.forEach((k,i)=>{
+      const u=onSnapshot(query(visCol,where('day','==',k)),snap=>{
+        barCounts[i]=snap.size;
+        const maxBar=Math.max(...barCounts,1);
+        const chart=document.getElementById('a-chart');
+        const lbls=document.getElementById('a-bar-labels');
+        if(chart) chart.innerHTML=barCounts.map((c,idx)=>
+          `<div class="analytics-bar" style="flex:1;height:\${Math.max(3,Math.round(c/maxBar*58))}px"
+           title="\${dayKeys[idx].slice(5)}: \${c} visitor\${c!==1?'s':''}" ></div>`).join('');
+        if(lbls) lbls.innerHTML=`<span>\${dayKeys[0].slice(5)}</span><span>\${dayKeys[6].slice(5)}</span>`;
+      },e=>{});
+      _analyticsUnsubs.push(u);
     });
 
-  } catch(e) {
-    panel.innerHTML = `
-      <div style="color:var(--grey);font-size:11px;line-height:1.9;">
-        <strong style="color:#ff8a8a;">Analytics error:</strong> ${e.message}<br><br>
-        <strong style="color:var(--accent);font-family:'Syncopate',sans-serif;font-size:9px;letter-spacing:.14em;">
-          Fix your Firestore rules:
-        </strong>
-        ${RULES_MSG}
-      </div>`;
+    /* Realtime presence — who is online NOW */
+    const presUnsub=onSnapshot(presCol,snap=>{
+      const cut=Date.now()-45000;
+      const live=[];
+      snap.forEach(d=>{const data=d.data();if(data.ts?.toMillis?.()>cut)live.push(data);});
+      window._liveCount=live.length;
+      document.querySelectorAll('.js-live-count').forEach(el=>el.textContent=live.length);
+      const ll=document.getElementById('a-live-list');
+      if(ll){
+        ll.innerHTML=live.length===0
+          ?'<div style="color:var(--grey);font-size:11px;padding:6px 0;">No one online right now.</div>'
+          :live.map((v,i)=>`
+            <div class="recent-item" style="border-left-color:\${i===0?'#4caf50':'var(--border)'};animation:ashIn .3s ease \${i*.05}s both">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#4caf50;display:inline-block;flex-shrink:0;animation:livePulse 1.6s infinite"></span>
+                Visitor …\${(v.did||v.sid||'???').slice(-6)}
+              </span>
+              <span class="r-time" style="color:#4caf50">● live</span>
+            </div>`).join('');
+      }
+    },e=>console.error('Presence err:',e.message));
+    _analyticsUnsubs.push(presUnsub);
+
+    /* Realtime recent visitors */
+    try {
+      const recentUnsub=onSnapshot(
+        query(visCol,orderBy('ts','desc'),limit(15)),
+        snap=>{
+          const el=document.getElementById('a-recent-list');
+          if(!el) return;
+          if(snap.empty){el.innerHTML='<div style="color:var(--grey);font-size:11px;padding:6px 0;">No visitors yet.</div>';return;}
+          const rows=[];
+          snap.forEach(d=>{
+            const data=d.data();
+            const ts=data.ts?data.ts.toDate():new Date();
+            rows.push(`<div class="recent-item">
+              <span>\${data.day||'—'}</span>
+              <span class="r-time">\${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
+            </div>`);
+          });
+          el.innerHTML=rows.join('');
+        },
+        e=>{
+          const el=document.getElementById('a-recent-list');
+          if(el) el.innerHTML='<div style="font-size:10px;color:var(--grey);padding:6px 0;">Needs Firestore index — check browser console for the auto-create link.</div>';
+        }
+      );
+      _analyticsUnsubs.push(recentUnsub);
+    } catch(e){}
+
+  } catch(e){
+    panel.innerHTML=`<div style="color:var(--grey);font-size:11px;line-height:1.9;">
+      <strong style="color:#ff8a8a;">Analytics error: \${e.message}</strong><br><br>
+      Make sure Firestore rules allow read/write on /visits, /presence, /proofs.
+    </div>`;
   }
 }
 
@@ -1945,8 +2018,6 @@ service cloud.firestore {
    initVisitorTracking() already handles renderProofs()
    so this just catches the admin-already-logged-in case.
 ══════════════════════════════════════════════════════ */
-// Nothing needed here — initVisitorTracking() handles everything.
-// It is called directly from DOMContentLoaded above.
 </script>
 </body>
 </html>
