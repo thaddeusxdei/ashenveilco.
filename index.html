@@ -1466,8 +1466,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(lbClose) lbClose.addEventListener('click',()=>lb.classList.remove('open'));
   if(lb) lb.addEventListener('click',e=>{if(e.target===lb)lb.classList.remove('open');});
 
-  /* Init visitor tracking after db ready */
-  window.addEventListener('dbReady',initVisitorTracking,{once:true});
+  /* Init visitor tracking — use waitForDb() to avoid race with module load */
+  initVisitorTracking();
 });
 
 /* ══════════════════════════════════════════════════════
@@ -1523,14 +1523,18 @@ function updateProofAdmin(isAdmin){
   waitForDb().then(()=>renderProofs());
 }
 
-/* Reliably wait for Firebase db to be ready */
+/* Reliably wait for Firebase db — checks immediately, then polls */
 function waitForDb(){
-  return new Promise(res=>{
-    if(window._db) return res(window._db);
-    const check=setInterval(()=>{
-      if(window._db){ clearInterval(check); res(window._db); }
-    },100);
-    setTimeout(()=>{ clearInterval(check); res(null); },10000);
+  if(window._db) return Promise.resolve(window._db);
+  return new Promise(res => {
+    // Also listen for the dbReady event in case it fires after this call
+    const onReady = () => { clearInterval(poll); res(window._db); };
+    window.addEventListener('dbReady', onReady, { once: true });
+    const poll = setInterval(() => {
+      if(window._db){ window.removeEventListener('dbReady', onReady); clearInterval(poll); res(window._db); }
+    }, 80);
+    // Hard timeout 12s
+    setTimeout(() => { window.removeEventListener('dbReady', onReady); clearInterval(poll); res(null); }, 12000);
   });
 }
 
@@ -1719,8 +1723,10 @@ async function renderProofs(){
    VISITOR TRACKING + ANALYTICS
 ══════════════════════════════════════════════════════ */
 async function initVisitorTracking(){
+  console.log('initVisitorTracking: waiting for db...');
   const db = await waitForDb();
-  if(!db){ console.warn('initVisitorTracking: no db'); return; }
+  if(!db){ console.error('initVisitorTracking: db unavailable after timeout'); return; }
+  console.log('initVisitorTracking: db ready, writing visit...');
 
   const pad = n => String(n).padStart(2,'0');
   const now = new Date();
@@ -1732,7 +1738,10 @@ async function initVisitorTracking(){
   };
 
   let sid = sessionStorage.getItem('_avc_sid');
-  if(!sid){ sid = Math.random().toString(36).slice(2)+Date.now().toString(36); sessionStorage.setItem('_avc_sid',sid); }
+  if(!sid){
+    sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    sessionStorage.setItem('_avc_sid', sid);
+  }
 
   try {
     const {
@@ -1740,8 +1749,8 @@ async function initVisitorTracking(){
       doc, setDoc, deleteDoc, onSnapshot
     } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
 
-    /* Write visit — NO .catch() so errors surface */
-    await addDoc(collection(db,'visits'),{
+    /* Write visit record */
+    const ref = await addDoc(collection(db,'visits'), {
       ts:    serverTimestamp(),
       day:   todayKey,
       week:  getWeekKey(now),
@@ -1749,31 +1758,50 @@ async function initVisitorTracking(){
       year:  String(now.getFullYear()),
       sid,
     });
+    console.log('✓ Visit written to Firestore, id:', ref.id);
 
-    /* Presence heartbeat — 25s interval */
-    const presRef = doc(db,'presence',sid);
-    const hb = () => setDoc(presRef,{ ts: serverTimestamp(), sid }).catch(console.error);
+    /* Presence heartbeat every 25s */
+    const presRef = doc(db, 'presence', sid);
+    const hb = () => setDoc(presRef, { ts: serverTimestamp(), sid })
+      .then(() => console.log('✓ Presence heartbeat ok'))
+      .catch(e => console.error('✗ Presence write failed:', e.code, e.message));
     hb();
     const hbInt = setInterval(hb, 25000);
-    window.addEventListener('beforeunload',()=>{ clearInterval(hbInt); deleteDoc(presRef).catch(()=>{}); });
-
-    /* Live counter: subscribe globally, update any open liveCount element */
-    onSnapshot(collection(db,'presence'), snap => {
-      const cut = Date.now() - 60000;
-      let live = 0;
-      snap.forEach(d => { const ts=d.data().ts; if(ts?.toMillis?.()>cut) live++; });
-      window._liveCount = live;
-      const el = document.getElementById('liveCount');
-      if(el) el.textContent = live;
+    window.addEventListener('beforeunload', () => {
+      clearInterval(hbInt);
+      deleteDoc(presRef).catch(()=>{});
     });
 
-    /* Expose analytics renderer */
+    /* Live counter — realtime presence listener */
+    onSnapshot(
+      collection(db, 'presence'),
+      snap => {
+        const cut = Date.now() - 60000;
+        let live = 0;
+        snap.forEach(d => { const ts = d.data().ts; if(ts?.toMillis?.() > cut) live++; });
+        window._liveCount = live;
+        const el = document.getElementById('liveCount');
+        if(el) el.textContent = live;
+        console.log('Live visitors:', live);
+      },
+      e => console.error('✗ Presence snapshot failed:', e.code, e.message)
+    );
+
+    /* Expose analytics renderer for admin */
     window._renderAnalytics = () => renderAnalytics(db);
+
+    /* Init proof board */
     window._proofReady = true;
     renderProofs();
 
+    /* If admin session is still active, show analytics immediately */
+    if(sessionStorage.getItem('adminToken') === 'deid4ra'){
+      renderAnalytics(db);
+      updateProofAdmin(true);
+    }
+
   } catch(e) {
-    console.error('Visitor tracking failed:', e.code, e.message);
+    console.error('✗ initVisitorTracking failed:', e.code, e.message, e);
   }
 }
 
@@ -1913,20 +1941,12 @@ service cloud.firestore {
 }
 
 /* ══════════════════════════════════════════════════════
-   On load: check if already admin (session persisted)
-   and init proof board once db is ready
+   On load: check if already admin (session persisted).
+   initVisitorTracking() already handles renderProofs()
+   so this just catches the admin-already-logged-in case.
 ══════════════════════════════════════════════════════ */
-window.addEventListener('dbReady', () => {
-  const isAdm = sessionStorage.getItem('adminToken') === 'deid4ra';
-  if (isAdm) {
-    waitForDb().then(() => {
-      if (window._renderAnalytics) window._renderAnalytics();
-      updateProofAdmin(true);
-    });
-  } else {
-    renderProofs();
-  }
-}, { once: true });
+// Nothing needed here — initVisitorTracking() handles everything.
+// It is called directly from DOMContentLoaded above.
 </script>
 </body>
 </html>
