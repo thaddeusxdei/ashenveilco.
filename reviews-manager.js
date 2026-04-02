@@ -22,10 +22,8 @@ function loginAdmin() {
     sessionStorage.setItem('adminToken', token);
     isAdmin = true;
     updateAdminUI();
-    // Keep admin panel visible and trigger analytics
     const ac = document.getElementById('adminControls');
     if (ac) ac.classList.add('visible');
-    if (typeof window._renderAnalytics === 'function') window._renderAnalytics();
     if (typeof window._updateProofAdmin === 'function') window._updateProofAdmin(true);
   } else {
     alert("Invalid token.");
@@ -38,15 +36,18 @@ function logoutAdmin() {
   updateAdminUI();
   const panel = document.getElementById('analyticsPanel');
   if (panel) { panel.classList.remove('visible'); panel.innerHTML = ''; }
+  if (typeof window.teardownAnalytics === 'function') window.teardownAnalytics();
   if (typeof window._updateProofAdmin === 'function') window._updateProofAdmin(false);
 }
 
 function updateAdminUI() {
   // Use static buttons injected in HTML — just toggle visibility
-  const loginBtn  = document.getElementById('adminLoginBtn');
-  const logoutBtn = document.getElementById('adminLogoutBtn');
+  const loginBtn   = document.getElementById('adminLoginBtn');
+  const logoutBtn  = document.getElementById('adminLogoutBtn');
+  const toggleBtn  = document.getElementById('analyticsToggleBtn');
   if (loginBtn)  loginBtn.style.display  = isAdmin ? 'none' : '';
   if (logoutBtn) logoutBtn.style.display = isAdmin ? ''     : 'none';
+  if (toggleBtn) toggleBtn.style.display = isAdmin ? ''     : 'none';
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
