@@ -22,6 +22,11 @@ function loginAdmin() {
     sessionStorage.setItem('adminToken', token);
     isAdmin = true;
     updateAdminUI();
+    // Keep admin panel visible and trigger analytics
+    const ac = document.getElementById('adminControls');
+    if (ac) ac.classList.add('visible');
+    if (typeof window._renderAnalytics === 'function') window._renderAnalytics();
+    if (typeof window._updateProofAdmin === 'function') window._updateProofAdmin(true);
   } else {
     alert("Invalid token.");
   }
@@ -31,14 +36,17 @@ function logoutAdmin() {
   sessionStorage.removeItem('adminToken');
   isAdmin = false;
   updateAdminUI();
+  const panel = document.getElementById('analyticsPanel');
+  if (panel) { panel.classList.remove('visible'); panel.innerHTML = ''; }
+  if (typeof window._updateProofAdmin === 'function') window._updateProofAdmin(false);
 }
 
 function updateAdminUI() {
-  const el = document.getElementById('adminControls');
-  if (!el) return;
-  el.innerHTML = isAdmin
-    ? `<button class="admin-logout-btn" onclick="logoutAdmin()">Logout Admin</button>`
-    : `<button class="admin-login-btn" onclick="loginAdmin()">Admin Panel</button>`;
+  // Use static buttons injected in HTML — just toggle visibility
+  const loginBtn  = document.getElementById('adminLoginBtn');
+  const logoutBtn = document.getElementById('adminLogoutBtn');
+  if (loginBtn)  loginBtn.style.display  = isAdmin ? 'none' : '';
+  if (logoutBtn) logoutBtn.style.display = isAdmin ? ''     : 'none';
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -112,11 +120,6 @@ async function deleteReview(reviewId) {
     console.error(err);
     alert('Error deleting review. Check Firestore rules — make sure delete is allowed.');
   }
-}
-
-// your other functions here
-function loadReviews() {
-   ...
 }
 
 // ─── Reactions (heart, one per visitor) ───────────────────────────────────────
@@ -320,5 +323,4 @@ window.setRating = setRating;
 document.addEventListener('DOMContentLoaded', () => {
   checkAdminStatus();
   loadReviews();
-  
 });
