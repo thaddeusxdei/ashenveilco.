@@ -1133,57 +1133,15 @@ body::after {
 
 </div><!-- .window -->
 
-<!-- Firebase modules -->
+<!-- Firebase modules — load in order -->
 <script src="firebase-config.js" type="module"></script>
 <script src="reviews-manager.js" type="module"></script>
 
-<!-- Signal module ready + expose db -->
+<!-- Expose db globally after modules load -->
 <script type="module">
   import { db } from './firebase-config.js';
   window._db = db;
   window.dispatchEvent(new Event('dbReady'));
-  // Small delay to ensure reviews-manager has run its exports
-  setTimeout(() => window.dispatchEvent(new Event('reviewsModuleReady')), 0);
-</script>
-
-<!-- Safe global stubs — called if user clicks before module loads -->
-<script>
-(function(){
-  // Queue calls made before module is ready
-  var _queue = {};
-  var _ready = false;
-
-  function makeStub(name) {
-    window[name] = window[name] || function() {
-      if (_ready && typeof window['_real_' + name] === 'function') {
-        window['_real_' + name].apply(null, arguments);
-      } else {
-        _queue[name] = _queue[name] || [];
-        _queue[name].push(Array.from(arguments));
-      }
-    };
-  }
-
-  ['setRating','submitReview','deleteReview','toggleReaction',
-   'submitReply','deleteReply','toggleReplies'].forEach(makeStub);
-
-  window.addEventListener('reviewsModuleReady', function() {
-    _ready = true;
-    // Flush queued calls using the real implementations
-    ['setRating','submitReview','deleteReview','toggleReaction',
-     'submitReply','deleteReply','toggleReplies'].forEach(function(name) {
-      if (typeof window[name] === 'function') {
-        window['_real_' + name] = window[name];
-      }
-      if (_queue[name]) {
-        _queue[name].forEach(function(args) {
-          if (typeof window[name] === 'function') window[name].apply(null, args);
-        });
-        delete _queue[name];
-      }
-    });
-  });
-})();
 </script>
 
 <script>
@@ -1558,9 +1516,9 @@ let _proofListener=null; /* track onSnapshot unsubscribe */
 
 function updateProofAdmin(isAdmin){
   _proofIsAdmin=isAdmin;
+  window._updateProofAdmin = updateProofAdmin; // expose globally
   const ua=document.getElementById('proofUploadArea');
   if(ua) isAdmin?ua.classList.add('visible'):ua.classList.remove('visible');
-  /* Re-render so admin buttons show/hide */
   if(_proofListener){ _proofListener(); _proofListener=null; }
   waitForDb().then(()=>renderProofs());
 }
@@ -1955,61 +1913,20 @@ service cloud.firestore {
 }
 
 /* ══════════════════════════════════════════════════════
-   Patch loginAdmin / logoutAdmin to trigger analytics + proofs
-   Also override reviews-manager's updateAdminUI so it doesn't
-   wipe our static admin button HTML
+   On load: check if already admin (session persisted)
+   and init proof board once db is ready
 ══════════════════════════════════════════════════════ */
-window.addEventListener('reviewsModuleReady',()=>{
-  /* Neutralise reviews-manager's updateAdminUI — we handle UI ourselves */
-  window._origUpdateAdminUI = window.updateAdminUI;
-  window.updateAdminUI = function(){
-    const isAdm = sessionStorage.getItem('adminToken') === 'deid4ra';
-    const loginBtn  = document.getElementById('adminLoginBtn');
-    const logoutBtn = document.getElementById('adminLogoutBtn');
-    if(loginBtn)  loginBtn.style.display  = isAdm ? 'none'  : '';
-    if(logoutBtn) logoutBtn.style.display = isAdm ? ''      : 'none';
-  };
-
-  const oLogin  = window.loginAdmin;
-  const oLogout = window.logoutAdmin;
-
-  window.loginAdmin = async function(){
-    const token = prompt('Enter admin token:');
-    if(!token) return;
-    if(token === 'deid4ra'){
-      sessionStorage.setItem('adminToken','deid4ra');
-      window.updateAdminUI();
-      /* Keep panel visible after login */
-      document.getElementById('adminControls').classList.add('visible');
-      waitForDb().then(()=>{
-        if(window._renderAnalytics) window._renderAnalytics();
-        updateProofAdmin(true);
-      });
-    } else {
-      alert('Invalid token.');
-    }
-  };
-
-  window.logoutAdmin = async function(){
-    sessionStorage.removeItem('adminToken');
-    window.updateAdminUI();
-    const panel = document.getElementById('analyticsPanel');
-    panel.classList.remove('visible'); panel.innerHTML = '';
-    updateProofAdmin(false);
-  };
-
-  /* On page load: sync button state + check if already logged in */
-  window.updateAdminUI();
+window.addEventListener('dbReady', () => {
   const isAdm = sessionStorage.getItem('adminToken') === 'deid4ra';
-  if(isAdm){
-    waitForDb().then(()=>{
-      if(window._renderAnalytics) window._renderAnalytics();
+  if (isAdm) {
+    waitForDb().then(() => {
+      if (window._renderAnalytics) window._renderAnalytics();
       updateProofAdmin(true);
     });
   } else {
-    waitForDb().then(()=>renderProofs());
+    renderProofs();
   }
-},{once:true});
+}, { once: true });
 </script>
 </body>
 </html>
