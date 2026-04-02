@@ -1154,8 +1154,8 @@ body::after {
 
 <script>
 /* ══════════════════════════════════════════════════════
-   BG CANVAS — looping gradient mesh (30–50% opacity)
-   White/grey palette, 5 blobs, 3 particle layers
+   BG CANVAS — fast looping gradient mesh
+   Grey/white/black palette, large blobs, crisp edges
 ══════════════════════════════════════════════════════ */
 (function(){
   const canvas = document.getElementById('bgCanvas');
@@ -1168,7 +1168,7 @@ body::after {
   resize();
   window.addEventListener('resize', resize);
 
-  /* Mouse/touch */
+  /* Mouse/touch for particle repel */
   let mx=-9999, my=-9999;
   document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
   document.addEventListener('touchmove',e=>{
@@ -1176,145 +1176,154 @@ body::after {
   },{passive:true});
 
   /* ── GRADIENT BLOBS ──
-     opacity 30–50% → alpha 0.30–0.50
-     Colors cycle through white/grey palette */
-  const PALETTE=[
-    [242,239,233],  // --white
-    [196,192,184],  // --accent
-    [122,120,112],  // --grey
-    [210,208,202],  // off-white
-    [160,158,152],  // mid-grey
+     Palette: pure whites, cool greys, near-blacks
+     Mixed like the reference image — bright core, dark surrounds
+     Larger radii, faster movement, sharper falloff (less blur) */
+  const PALETTE = [
+    [242, 242, 242],  // bright white
+    [200, 200, 200],  // light grey
+    [140, 140, 140],  // mid grey
+    [80,  80,  80 ],  // dark grey
+    [28,  28,  28 ],  // near-black
+    [220, 220, 220],  // off-white
+    [60,  60,  60 ],  // deep grey
+    [255, 255, 255],  // pure white
   ];
-  const blobs = Array.from({length:6},(_, i)=>{
-    const ang=Math.random()*Math.PI*2;
-    const col=PALETTE[i % PALETTE.length];
+
+  const blobs = Array.from({length:7}, (_, i) => {
+    const ang = Math.random() * Math.PI * 2;
     return {
-      x:    Math.random()*window.innerWidth,
-      y:    Math.random()*window.innerHeight,
-      rx:   240+Math.random()*280,
-      ry:   170+Math.random()*200,
-      vx:   Math.cos(ang)*(0.08+Math.random()*0.14),
-      vy:   Math.sin(ang)*(0.06+Math.random()*0.11),
-      wx:   Math.random()*Math.PI*2,
-      wy:   Math.random()*Math.PI*2,
-      wpx:  0.00012+Math.random()*0.0002,
-      wpy:  0.0001 +Math.random()*0.00016,
-      wax:  14+Math.random()*22,
-      rot:  Math.random()*Math.PI*2,
-      rotV: (Math.random()-0.5)*0.0002,
-      col:  col,
-      /* alpha oscillates between 0.30 and 0.50 */
-      alphaBase: 0.30+Math.random()*0.08,
-      alphaAmp:  0.08+Math.random()*0.06,
-      alphaSpd:  0.0004+Math.random()*0.0006,
-      alphaPhase:Math.random()*Math.PI*2,
+      x:    Math.random() * window.innerWidth,
+      y:    Math.random() * window.innerHeight,
+      /* Larger blobs */
+      rx:   340 + Math.random() * 380,
+      ry:   240 + Math.random() * 280,
+      /* Faster base velocity — 3–5x previous */
+      vx:   Math.cos(ang) * (0.35 + Math.random() * 0.55),
+      vy:   Math.sin(ang) * (0.28 + Math.random() * 0.45),
+      /* Wander speeds also faster */
+      wx:   Math.random() * Math.PI * 2,
+      wy:   Math.random() * Math.PI * 2,
+      wpx:  0.0006 + Math.random() * 0.001,
+      wpy:  0.0005 + Math.random() * 0.0008,
+      rot:  Math.random() * Math.PI * 2,
+      rotV: (Math.random() - 0.5) * 0.0008,
+      col:  PALETTE[i % PALETTE.length],
+      /* Alpha 0.28–0.48 — visible but not overwhelming */
+      alphaBase:  0.28 + Math.random() * 0.10,
+      alphaAmp:   0.06 + Math.random() * 0.06,
+      alphaSpd:   0.002 + Math.random() * 0.003,  /* faster breathing */
+      alphaPhase: Math.random() * Math.PI * 2,
     };
   });
 
-  /* ── PARTICLES ── */
-  const L1=Array.from({length:40},()=>({
-    x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+  /* ── PARTICLES (3 layers) ── */
+  const L1 = Array.from({length:40}, () => ({
+    x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
     r:Math.random()*1.3+0.7, bspd:Math.random()*0.3+0.06,
     al:Math.random()*0.05+0.03, sway:Math.random()*24+12,
     per:Math.random()*5+4, ph:Math.random()*Math.PI*2,
     dx:(Math.random()-0.5)*0.2, fl:0,
   }));
-  const L2=Array.from({length:60},()=>({
-    x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+  const L2 = Array.from({length:60}, () => ({
+    x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
     r:Math.random()*0.55+0.3, bspd:Math.random()*0.6+0.2,
     al:Math.random()*0.04+0.018, hd:(Math.random()-0.5)*0.45,
     per:Math.random()*3+2, ph:Math.random()*Math.PI*2, fl:0,
   }));
-  const L3=Array.from({length:14},()=>({
-    x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,
+  const L3 = Array.from({length:14}, () => ({
+    x:Math.random()*window.innerWidth, y:Math.random()*window.innerHeight,
     r:Math.random()*6+8, bspd:Math.random()*0.05+0.015,
     al:Math.random()*0.016+0.01, vx:(Math.random()-0.5)*0.05,
     vy:-(Math.random()*0.04+0.01), per:Math.random()*12+10,
     ph:Math.random()*Math.PI*2, fl:0,
   }));
-  const ALL=[...L1,...L2,...L3];
+  const ALL = [...L1,...L2,...L3];
 
-  /* Flicker */
+  /* Flicker scheduler */
   (function flick(){
     setTimeout(()=>{
-      const n=1+Math.floor(Math.random()*3);
+      const n = 1 + Math.floor(Math.random()*3);
       for(let i=0;i<n;i++) ALL[Math.floor(Math.random()*ALL.length)].fl=1;
       flick();
-    },2000+Math.random()*3200);
+    }, 1800 + Math.random()*2400);
   })();
 
   function repel(px,py,bs){
-    const d=Math.hypot(px-mx,py-my);
-    return d<80?bs*(0.7+0.3*d/80):bs;
+    const d = Math.hypot(px-mx, py-my);
+    return d < 80 ? bs*(0.7 + 0.3*d/80) : bs;
   }
   function dot(x,y,r,al){
-    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
-    ctx.fillStyle=`rgba(200,196,188,${Math.min(1,al)})`;ctx.fill();
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle = `rgba(200,196,188,${Math.min(1,al)})`; ctx.fill();
   }
 
-  let t=0;
+  let t = 0;
   function frame(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    t+=0.016;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    t += 0.016;
 
-    /* Draw blobs */
-    blobs.forEach(b=>{
-      b.wx+=b.wpx; b.wy+=b.wpy;
-      b.x+=b.vx+Math.sin(b.wx)*0.32;
-      b.y+=b.vy+Math.cos(b.wy)*0.26;
-      b.rot+=b.rotV;
-      const m=Math.max(b.rx,b.ry)+50;
-      if(b.x<-m)b.x=canvas.width+m*.5;
-      if(b.x>canvas.width+m)b.x=-m*.5;
-      if(b.y<-m)b.y=canvas.height+m*.5;
-      if(b.y>canvas.height+m)b.y=-m*.5;
+    /* Draw blobs — sharper falloff: stop at 0.55 instead of 1 for crisper edge */
+    blobs.forEach(b => {
+      b.wx += b.wpx; b.wy += b.wpy;
+      b.x  += b.vx + Math.sin(b.wx) * 0.8;
+      b.y  += b.vy + Math.cos(b.wy) * 0.65;
+      b.rot += b.rotV;
+      const m = Math.max(b.rx, b.ry) + 60;
+      if(b.x < -m)              b.x = canvas.width  + m * 0.5;
+      if(b.x > canvas.width+m)  b.x = -m * 0.5;
+      if(b.y < -m)              b.y = canvas.height + m * 0.5;
+      if(b.y > canvas.height+m) b.y = -m * 0.5;
 
-      /* Breathing alpha between 0.30 and 0.50 */
-      b.alphaPhase+=b.alphaSpd;
-      const al=b.alphaBase+Math.sin(b.alphaPhase)*b.alphaAmp;
+      b.alphaPhase += b.alphaSpd;
+      const al = b.alphaBase + Math.sin(b.alphaPhase) * b.alphaAmp;
 
       ctx.save();
-      ctx.translate(b.x,b.y); ctx.rotate(b.rot); ctx.scale(1,b.ry/b.rx);
-      const g=ctx.createRadialGradient(0,0,0,0,0,b.rx);
-      const [r,g2,bl]=b.col;
-      g.addColorStop(0,  `rgba(${r},${g2},${bl},${al})`);
-      g.addColorStop(0.5,`rgba(${r},${g2},${bl},${al*0.4})`);
-      g.addColorStop(1,  `rgba(0,0,0,0)`);
-      ctx.beginPath();ctx.arc(0,0,b.rx,0,Math.PI*2);
-      ctx.fillStyle=g; ctx.fill();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.scale(1, b.ry / b.rx);
+      const g = ctx.createRadialGradient(0,0,0, 0,0,b.rx);
+      const [r,gv,bl] = b.col;
+      /* Sharper: full alpha at center, zero at 0.55 (not 1.0) = crisper blob */
+      g.addColorStop(0,    `rgba(${r},${gv},${bl},${al})`);
+      g.addColorStop(0.35, `rgba(${r},${gv},${bl},${al * 0.55})`);
+      g.addColorStop(0.65, `rgba(${r},${gv},${bl},${al * 0.15})`);
+      g.addColorStop(1,    `rgba(${r},${gv},${bl},0)`);
+      ctx.beginPath(); ctx.arc(0,0,b.rx,0,Math.PI*2);
+      ctx.fillStyle = g; ctx.fill();
       ctx.restore();
     });
 
     /* L1 slow embers */
-    L1.forEach(e=>{
-      const s=repel(e.x,e.y,e.bspd);
-      e.y-=s; e.x+=e.dx+Math.sin(t/e.per+e.ph)*0.3;
+    L1.forEach(e => {
+      const s = repel(e.x,e.y,e.bspd);
+      e.y -= s; e.x += e.dx + Math.sin(t/e.per+e.ph)*0.3;
       if(e.y<-4){e.y=canvas.height+4;e.x=Math.random()*canvas.width;}
       if(e.x<-4)e.x=canvas.width+4; if(e.x>canvas.width+4)e.x=-4;
       const fl=e.fl*0.17; e.fl=Math.max(0,e.fl-.06);
-      dot(e.x+e.sway*Math.sin(t/e.per+e.ph),e.y,e.r,e.al+fl);
+      dot(e.x+e.sway*Math.sin(t/e.per+e.ph), e.y, e.r, e.al+fl);
     });
     /* L2 sharp specks */
-    L2.forEach(e=>{
-      const s=repel(e.x,e.y,e.bspd);
-      e.y-=s; e.x+=e.hd+Math.cos(t/e.per+e.ph)*0.16;
+    L2.forEach(e => {
+      const s = repel(e.x,e.y,e.bspd);
+      e.y -= s; e.x += e.hd + Math.cos(t/e.per+e.ph)*0.16;
       if(e.y<-2){e.y=canvas.height+2;e.x=Math.random()*canvas.width;}
       if(e.x<-4)e.x=canvas.width+4; if(e.x>canvas.width+4)e.x=-4;
       const fl=e.fl*0.1; e.fl=Math.max(0,e.fl-.08);
-      dot(e.x,e.y,e.r,e.al+fl);
+      dot(e.x, e.y, e.r, e.al+fl);
     });
     /* L3 large orbs */
-    L3.forEach(e=>{
-      const sf=repel(e.x,e.y,1);
-      e.x+=e.vx*sf+Math.sin(t/e.per+e.ph)*0.09;
-      e.y+=e.vy*sf+Math.cos(t/e.per*.7+e.ph)*0.06;
+    L3.forEach(e => {
+      const sf = repel(e.x,e.y,1);
+      e.x += e.vx*sf + Math.sin(t/e.per+e.ph)*0.09;
+      e.y += e.vy*sf + Math.cos(t/e.per*.7+e.ph)*0.06;
       if(e.y<-e.r*2){e.y=canvas.height+e.r;e.x=Math.random()*canvas.width;}
-      if(e.y>canvas.height+e.r)e.y=-e.r;
-      if(e.x<-e.r*2)e.x=canvas.width+e.r;
-      if(e.x>canvas.width+e.r)e.x=-e.r;
+      if(e.y>canvas.height+e.r) e.y=-e.r;
+      if(e.x<-e.r*2) e.x=canvas.width+e.r;
+      if(e.x>canvas.width+e.r) e.x=-e.r;
       const fl=e.fl*0.018; e.fl=Math.max(0,e.fl-.03);
-      ctx.beginPath();ctx.arc(e.x,e.y,e.r*2.4,0,Math.PI*2);
-      ctx.fillStyle=`rgba(200,196,188,${(e.al+fl)*.22})`;ctx.fill();
+      ctx.beginPath(); ctx.arc(e.x,e.y,e.r*2.4,0,Math.PI*2);
+      ctx.fillStyle=`rgba(200,196,188,${(e.al+fl)*.22})`; ctx.fill();
       dot(e.x,e.y,e.r,e.al+fl);
     });
 
@@ -1732,9 +1741,10 @@ async function renderProofs(){
 ══════════════════════════════════════════════════════ */
 /* ══════════════════════════════════════════════════════
    VISITOR TRACKING + ANALYTICS
-   - 1 device = 1 visit count per day (localStorage)
-   - Presence tracked every session (for live count)
-   - Analytics fully realtime via onSnapshot
+   Rules:
+   - "visits" collection: 1 doc per device per day (did_YYYY-MM-DD)
+   - "visitors" collection: 1 doc per device EVER (did) — permanent total
+   - "presence" collection: 1 doc per session tab — real-time online now
 ══════════════════════════════════════════════════════ */
 async function initVisitorTracking(){
   const db = await waitForDb();
@@ -1749,14 +1759,14 @@ async function initVisitorTracking(){
     return `${d.getFullYear()}-W${pad(wk)}`;
   };
 
-  /* Device ID — localStorage persists across refreshes/tabs */
+  /* Device ID — localStorage persists across refreshes */
   let did = localStorage.getItem('_avc_did');
   if(!did){
     did = 'dev_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
     localStorage.setItem('_avc_did', did);
   }
 
-  /* Session ID — fresh each tab/session for presence tracking */
+  /* Session ID — fresh per tab for presence */
   let sid = sessionStorage.getItem('_avc_sid');
   if(!sid){
     sid = 'ses_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -1765,40 +1775,46 @@ async function initVisitorTracking(){
 
   try {
     const {
-      collection, addDoc, serverTimestamp,
-      doc, setDoc, getDoc, deleteDoc, onSnapshot, query, where
+      collection, doc, getDoc, setDoc,
+      addDoc, deleteDoc, serverTimestamp, onSnapshot
     } = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
 
-    /* ── 1 DEVICE, 1 COUNT PER DAY ──
-       Check if this device already has a visit doc for today.
-       Use a deterministic doc ID = did + '_' + todayKey so we can check cheaply. */
+    /* ── VISIT COUNT: 1 per device per day ──
+       Doc ID = did + '_' + todayKey  →  deterministic, no duplicates on refresh */
     const visitDocId = did + '_' + todayKey;
-    const visitRef = doc(db, 'visits', visitDocId);
-    const existing = await getDoc(visitRef);
+    const visitRef   = doc(db, 'visits', visitDocId);
+    const visitSnap  = await getDoc(visitRef);
 
-    if(!existing.exists()){
+    if(!visitSnap.exists()){
       await setDoc(visitRef, {
         ts:    serverTimestamp(),
         day:   todayKey,
         week:  getWeekKey(now),
         month: `${now.getFullYear()}-${pad(now.getMonth()+1)}`,
         year:  String(now.getFullYear()),
-        did,   /* device id */
+        did,
       });
-      console.log('✓ New visit recorded for today');
+      console.log('✓ New visit recorded:', visitDocId);
     } else {
-      console.log('✓ Device already counted today — skipping write');
+      console.log('✓ Already counted today — skipping');
     }
 
-    /* ── PRESENCE — write every session (not just once per device)
-       So live count shows actual open tabs/sessions ── */
-    const presRef = doc(db, 'presence', sid);
-    const hb = () => setDoc(presRef, {
-      ts: serverTimestamp(),
-      sid, did,
-      page: window.location.pathname,
-    }).catch(e => console.error('✗ Presence heartbeat failed:', e.message));
+    /* ── TOTAL VISITORS: permanent, 1 per device ever ──
+       Doc ID = did  →  never duplicated regardless of day/year */
+    const totalRef  = doc(db, 'visitors', did);
+    const totalSnap = await getDoc(totalRef);
+    if(!totalSnap.exists()){
+      await setDoc(totalRef, {
+        firstSeen: serverTimestamp(),
+        did,
+      });
+      console.log('✓ New permanent visitor recorded');
+    }
 
+    /* ── PRESENCE: every session tab, heartbeat 20s ── */
+    const presRef = doc(db, 'presence', sid);
+    const hb = () => setDoc(presRef, { ts: serverTimestamp(), sid, did })
+      .catch(e => console.error('✗ Presence heartbeat failed:', e.message));
     hb();
     const hbInt = setInterval(hb, 20000);
     window.addEventListener('beforeunload', () => {
@@ -1806,39 +1822,27 @@ async function initVisitorTracking(){
       deleteDoc(presRef).catch(()=>{});
     });
 
-    /* ── LIVE COUNTER — realtime onSnapshot on presence ── */
-    onSnapshot(
-      collection(db, 'presence'),
-      snap => {
-        const cut = Date.now() - 45000; /* 45s cutoff — slightly longer than 20s heartbeat */
-        let live = 0;
-        snap.forEach(d => {
-          const ts = d.data().ts;
-          if(ts?.toMillis?.() > cut) live++;
-        });
-        window._liveCount = live;
-        /* Update all liveCount elements (panel may re-render) */
-        document.querySelectorAll('.js-live-count').forEach(el => el.textContent = live);
-        console.log('Live:', live);
-      },
-      e => console.error('✗ Presence snapshot error:', e.message)
-    );
+    /* ── LIVE COUNT: realtime onSnapshot on presence ── */
+    onSnapshot(collection(db, 'presence'), snap => {
+      const cut = Date.now() - 45000;
+      let live = 0;
+      snap.forEach(d => { const ts = d.data().ts; if(ts?.toMillis?.() > cut) live++; });
+      window._liveCount = live;
+      document.querySelectorAll('.js-live-count').forEach(el => el.textContent = live);
+    }, e => console.error('✗ Presence snapshot:', e.message));
 
-    /* Expose analytics renderer */
+    /* Expose analytics */
     window._renderAnalytics = () => renderAnalytics(db);
-
-    /* Init proof board */
     window._proofReady = true;
     renderProofs();
 
-    /* If already admin, show analytics */
     if(sessionStorage.getItem('adminToken') === 'deid4ra'){
       renderAnalytics(db);
       updateProofAdmin(true);
     }
 
   } catch(e) {
-    console.error('✗ initVisitorTracking error:', e.code, e.message);
+    console.error('✗ initVisitorTracking:', e.code, e.message);
   }
 }
 
@@ -1864,154 +1868,187 @@ window.teardownAnalytics = teardownAnalytics;
 
 async function renderAnalytics(db){
   teardownAnalytics();
-  const panel=document.getElementById('analyticsPanel');
+  const panel = document.getElementById('analyticsPanel');
   panel.classList.add('visible');
-  panel.innerHTML=`
-    <div class="analytics-header">
-      <span>Visitor Analytics</span>
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div class="analytics-live">
-          <span class="live-dot"></span>
-          <span class="js-live-count">\${window._liveCount??'…'}</span>&nbsp;online now
-        </div>
-        <button onclick="toggleAnalytics()" style="background:none;border:1px solid var(--border);
-          color:var(--grey);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.08em;
-          padding:5px 11px;cursor:pointer;transition:all .2s;"
-          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--white)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--grey)'">Hide ✕</button>
-      </div>
-    </div>
-    <div class="analytics-grid">
-      <div class="analytics-card"><div class="a-num" id="a-today">…</div><div class="a-label">Today</div></div>
-      <div class="analytics-card"><div class="a-num" id="a-week">…</div><div class="a-label">This Week</div></div>
-      <div class="analytics-card"><div class="a-num" id="a-month">…</div><div class="a-label">This Month</div></div>
-      <div class="analytics-card"><div class="a-num" id="a-year">…</div><div class="a-label">This Year</div></div>
-    </div>
-    <div class="analytics-section-title">Last 7 Days</div>
-    <div id="a-chart" style="display:flex;align-items:flex-end;gap:5px;height:64px;margin-bottom:7px;">
-      \${Array(7).fill('<div style="flex:1;height:3px;background:rgba(196,192,184,.1)"></div>').join('')}
-    </div>
-    <div id="a-bar-labels" style="display:flex;justify-content:space-between;font-size:9px;color:var(--grey);letter-spacing:.04em;">
-      <span></span><span></span>
-    </div>
-    <div class="analytics-section-title" style="color:#4caf50;">Currently Viewing</div>
-    <div id="a-live-list" class="recent-list" style="max-height:150px;overflow-y:auto;margin-bottom:4px;">
-      <div style="color:var(--grey);font-size:11px;padding:6px 0;">Watching…</div>
-    </div>
-    <div class="analytics-section-title">Recent Unique Visitors</div>
-    <div id="a-recent-list" class="recent-list" style="max-height:150px;overflow-y:auto;">
-      <div style="color:var(--grey);font-size:11px;padding:6px 0;">Loading…</div>
-    </div>`;
 
-  const pad=n=>String(n).padStart(2,'0');
-  const now=new Date();
-  const todayKey=`\${now.getFullYear()}-\${pad(now.getMonth()+1)}-\${pad(now.getDate())}`;
-  const getWeekKey=d=>{
-    const j1=new Date(d.getFullYear(),0,1);
-    const wk=Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
-    return `\${d.getFullYear()}-W\${pad(wk)}`;
+  // Build panel HTML with plain string concat to avoid escaping issues
+  const liveVal = (window._liveCount !== undefined) ? window._liveCount : '…';
+  panel.innerHTML = ''
+    + '<div class="analytics-header">'
+    + '  <span>Visitor Analytics</span>'
+    + '  <div style="display:flex;align-items:center;gap:14px;">'
+    + '    <div class="analytics-live">'
+    + '      <span class="live-dot"></span>'
+    + '      <span class="js-live-count">' + liveVal + '</span>&nbsp;online now'
+    + '    </div>'
+    + '    <button onclick="toggleAnalytics()" style="background:none;border:1px solid var(--border);'
+    + '      color:var(--grey);font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:.08em;'
+    + '      padding:5px 11px;cursor:pointer;transition:all .2s;"'
+    + '      onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--white)\'"'
+    + '      onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--grey)\'">Hide ✕</button>'
+    + '  </div>'
+    + '</div>'
+    + '<div class="analytics-grid">'
+    + '  <div class="analytics-card"><div class="a-num" id="a-today">…</div><div class="a-label">Today</div></div>'
+    + '  <div class="analytics-card"><div class="a-num" id="a-week">…</div><div class="a-label">This Week</div></div>'
+    + '  <div class="analytics-card"><div class="a-num" id="a-month">…</div><div class="a-label">This Month</div></div>'
+    + '  <div class="analytics-card"><div class="a-num" id="a-year">…</div><div class="a-label">This Year</div></div>'
+    + '  <div class="analytics-card" style="grid-column:1/-1;">'
+    + '    <div class="a-num" id="a-total" style="font-size:32px;">…</div>'
+    + '    <div class="a-label">Total Unique Visitors (All Time)</div>'
+    + '  </div>'
+    + '</div>'
+    + '<div class="analytics-section-title">Last 7 Days</div>'
+    + '<div id="a-chart" style="display:flex;align-items:flex-end;gap:5px;height:64px;margin-bottom:7px;">'
+    + '  <div style="flex:1;height:3px;background:rgba(196,192,184,.1)"></div>'.repeat(7)
+    + '</div>'
+    + '<div id="a-bar-labels" style="display:flex;justify-content:space-between;font-size:9px;color:var(--grey);letter-spacing:.04em;"><span></span><span></span></div>'
+    + '<div class="analytics-section-title" style="color:#4caf50;">Currently Viewing</div>'
+    + '<div id="a-live-list" class="recent-list" style="max-height:150px;overflow-y:auto;margin-bottom:4px;">'
+    + '  <div style="color:var(--grey);font-size:11px;padding:6px 0;">Watching…</div>'
+    + '</div>'
+    + '<div class="analytics-section-title">Recent Unique Visitors</div>'
+    + '<div id="a-recent-list" class="recent-list" style="max-height:160px;overflow-y:auto;">'
+    + '  <div style="color:var(--grey);font-size:11px;padding:6px 0;">Loading…</div>'
+    + '</div>';
+
+  const pad = n => String(n).padStart(2,'0');
+  const now = new Date();
+  const todayKey = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
+  const getWeekKey = function(d){
+    const j1 = new Date(d.getFullYear(),0,1);
+    const wk = Math.ceil(((d-j1)/86400000+j1.getDay()+1)/7);
+    return d.getFullYear() + '-W' + pad(wk);
   };
-  const weekKey=getWeekKey(now);
-  const monthKey=`\${now.getFullYear()}-\${pad(now.getMonth()+1)}`;
-  const yearKey=String(now.getFullYear());
-  const dayKeys=[];
-  for(let i=6;i>=0;i--){
-    const d=new Date(now); d.setDate(d.getDate()-i);
-    dayKeys.push(`\${d.getFullYear()}-\${pad(d.getMonth()+1)}-\${pad(d.getDate())}`);
+  const weekKey  = getWeekKey(now);
+  const monthKey = now.getFullYear() + '-' + pad(now.getMonth()+1);
+  const yearKey  = String(now.getFullYear());
+
+  const dayKeys = [];
+  for(let i=6; i>=0; i--){
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    dayKeys.push(d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()));
   }
 
   try {
-    const {collection,query,where,orderBy,limit,onSnapshot}
-      =await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
+    const { collection, query, where, orderBy, limit, onSnapshot }
+      = await import('https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js');
 
-    const visCol=collection(db,'visits');
-    const presCol=collection(db,'presence');
+    const visCol  = collection(db, 'visits');
+    const presCol = collection(db, 'presence');
+    const totCol  = collection(db, 'visitors');
 
-    /* Realtime count watchers */
-    const watchCount=(field,val,elId)=>{
-      const u=onSnapshot(query(visCol,where(field,'==',val)),
-        snap=>{const el=document.getElementById(elId);if(el)el.textContent=snap.size;},
-        e=>console.error('Count watch:',e.message));
+    /* Realtime count: day/week/month/year from visits */
+    function watchCount(field, val, elId){
+      const u = onSnapshot(query(visCol, where(field,'==',val)), function(snap){
+        const el = document.getElementById(elId);
+        if(el) el.textContent = snap.size;
+      }, function(e){ console.error('Count watch error:', e.message); });
       _analyticsUnsubs.push(u);
-    };
-    watchCount('day',todayKey,'a-today');
-    watchCount('week',weekKey,'a-week');
-    watchCount('month',monthKey,'a-month');
-    watchCount('year',yearKey,'a-year');
+    }
+    watchCount('day',   todayKey, 'a-today');
+    watchCount('week',  weekKey,  'a-week');
+    watchCount('month', monthKey, 'a-month');
+    watchCount('year',  yearKey,  'a-year');
+
+    /* Realtime total unique visitors (visitors collection) */
+    const totalUnsub = onSnapshot(totCol, function(snap){
+      const el = document.getElementById('a-total');
+      if(el) el.textContent = snap.size;
+    }, function(e){ console.error('Total count error:', e.message); });
+    _analyticsUnsubs.push(totalUnsub);
 
     /* Realtime 7-day bar chart */
-    const barCounts=new Array(7).fill(0);
-    dayKeys.forEach((k,i)=>{
-      const u=onSnapshot(query(visCol,where('day','==',k)),snap=>{
-        barCounts[i]=snap.size;
-        const maxBar=Math.max(...barCounts,1);
-        const chart=document.getElementById('a-chart');
-        const lbls=document.getElementById('a-bar-labels');
-        if(chart) chart.innerHTML=barCounts.map((c,idx)=>
-          `<div class="analytics-bar" style="flex:1;height:\${Math.max(3,Math.round(c/maxBar*58))}px"
-           title="\${dayKeys[idx].slice(5)}: \${c} visitor\${c!==1?'s':''}" ></div>`).join('');
-        if(lbls) lbls.innerHTML=`<span>\${dayKeys[0].slice(5)}</span><span>\${dayKeys[6].slice(5)}</span>`;
-      },e=>{});
+    const barCounts = new Array(7).fill(0);
+    dayKeys.forEach(function(k, i){
+      const u = onSnapshot(query(visCol, where('day','==',k)), function(snap){
+        barCounts[i] = snap.size;
+        const maxBar = Math.max.apply(null, barCounts.concat([1]));
+        const chart = document.getElementById('a-chart');
+        const lbls  = document.getElementById('a-bar-labels');
+        if(chart){
+          chart.innerHTML = barCounts.map(function(c, idx){
+            const h = Math.max(3, Math.round(c/maxBar*58));
+            const lbl = dayKeys[idx].slice(5);
+            const suffix = c !== 1 ? 's' : '';
+            return '<div class="analytics-bar" style="flex:1;height:' + h + 'px" title="' + lbl + ': ' + c + ' visitor' + suffix + '"></div>';
+          }).join('');
+        }
+        if(lbls) lbls.innerHTML = '<span>' + dayKeys[0].slice(5) + '</span><span>' + dayKeys[6].slice(5) + '</span>';
+      }, function(e){});
       _analyticsUnsubs.push(u);
     });
 
     /* Realtime presence — who is online NOW */
-    const presUnsub=onSnapshot(presCol,snap=>{
-      const cut=Date.now()-45000;
-      const live=[];
-      snap.forEach(d=>{const data=d.data();if(data.ts?.toMillis?.()>cut)live.push(data);});
-      window._liveCount=live.length;
-      document.querySelectorAll('.js-live-count').forEach(el=>el.textContent=live.length);
-      const ll=document.getElementById('a-live-list');
+    const presUnsub = onSnapshot(presCol, function(snap){
+      const cut = Date.now() - 45000;
+      const live = [];
+      snap.forEach(function(d){ const data = d.data(); if(data.ts && data.ts.toMillis && data.ts.toMillis() > cut) live.push(data); });
+      window._liveCount = live.length;
+      document.querySelectorAll('.js-live-count').forEach(function(el){ el.textContent = live.length; });
+      const ll = document.getElementById('a-live-list');
       if(ll){
-        ll.innerHTML=live.length===0
-          ?'<div style="color:var(--grey);font-size:11px;padding:6px 0;">No one online right now.</div>'
-          :live.map((v,i)=>`
-            <div class="recent-item" style="border-left-color:\${i===0?'#4caf50':'var(--border)'};animation:ashIn .3s ease \${i*.05}s both">
-              <span style="display:flex;align-items:center;gap:8px;">
-                <span style="width:6px;height:6px;border-radius:50%;background:#4caf50;display:inline-block;flex-shrink:0;animation:livePulse 1.6s infinite"></span>
-                Visitor …\${(v.did||v.sid||'???').slice(-6)}
-              </span>
-              <span class="r-time" style="color:#4caf50">● live</span>
-            </div>`).join('');
+        if(live.length === 0){
+          ll.innerHTML = '<div style="color:var(--grey);font-size:11px;padding:6px 0;">No one online right now.</div>';
+        } else {
+          ll.innerHTML = live.map(function(v, i){
+            const borderColor = i === 0 ? '#4caf50' : 'var(--border)';
+            const devId = (v.did || v.sid || '???').slice(-6);
+            return '<div class="recent-item" style="border-left-color:' + borderColor + '">'
+              + '<span style="display:flex;align-items:center;gap:8px;">'
+              + '<span style="width:6px;height:6px;border-radius:50%;background:#4caf50;display:inline-block;flex-shrink:0;animation:livePulse 1.6s infinite"></span>'
+              + 'Visitor …' + devId
+              + '</span>'
+              + '<span class="r-time" style="color:#4caf50">● live</span>'
+              + '</div>';
+          }).join('');
+        }
       }
-    },e=>console.error('Presence err:',e.message));
+    }, function(e){ console.error('Presence snapshot error:', e.message); });
     _analyticsUnsubs.push(presUnsub);
 
-    /* Realtime recent visitors */
+    /* Realtime recent unique visitors */
     try {
-      const recentUnsub=onSnapshot(
-        query(visCol,orderBy('ts','desc'),limit(15)),
-        snap=>{
-          const el=document.getElementById('a-recent-list');
+      const recentUnsub = onSnapshot(
+        query(visCol, orderBy('ts','desc'), limit(15)),
+        function(snap){
+          const el = document.getElementById('a-recent-list');
           if(!el) return;
-          if(snap.empty){el.innerHTML='<div style="color:var(--grey);font-size:11px;padding:6px 0;">No visitors yet.</div>';return;}
-          const rows=[];
-          snap.forEach(d=>{
-            const data=d.data();
-            const ts=data.ts?data.ts.toDate():new Date();
-            rows.push(`<div class="recent-item">
-              <span>\${data.day||'—'}</span>
-              <span class="r-time">\${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>
-            </div>`);
+          if(snap.empty){
+            el.innerHTML = '<div style="color:var(--grey);font-size:11px;padding:6px 0;">No visitors yet.</div>';
+            return;
+          }
+          const rows = [];
+          snap.forEach(function(d){
+            const data = d.data();
+            const ts = data.ts ? data.ts.toDate() : new Date();
+            const dateStr = data.day || ts.toLocaleDateString('en-PH', {month:'short', day:'numeric'});
+            const timeStr = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            rows.push(
+              '<div class="recent-item">'
+              + '<span>' + dateStr + '</span>'
+              + '<span class="r-time">' + timeStr + '</span>'
+              + '</div>'
+            );
           });
-          el.innerHTML=rows.join('');
+          el.innerHTML = rows.join('');
         },
-        e=>{
-          const el=document.getElementById('a-recent-list');
-          if(el) el.innerHTML='<div style="font-size:10px;color:var(--grey);padding:6px 0;">Needs Firestore index — check browser console for the auto-create link.</div>';
+        function(e){
+          const el = document.getElementById('a-recent-list');
+          if(el) el.innerHTML = '<div style="font-size:10px;color:var(--grey);padding:6px 0;">Needs Firestore index — check browser console for the auto-create link.</div>';
         }
       );
       _analyticsUnsubs.push(recentUnsub);
     } catch(e){}
 
   } catch(e){
-    panel.innerHTML=`<div style="color:var(--grey);font-size:11px;line-height:1.9;">
-      <strong style="color:#ff8a8a;">Analytics error: \${e.message}</strong><br><br>
-      Make sure Firestore rules allow read/write on /visits, /presence, /proofs.
-    </div>`;
+    panel.innerHTML = '<div style="color:var(--grey);font-size:11px;line-height:1.9;">'
+      + '<strong style="color:#ff8a8a;">Analytics error: ' + e.message + '</strong><br><br>'
+      + 'Make sure Firestore rules allow read/write on /visits, /presence, /visitors, /proofs.'
+      + '</div>';
   }
 }
+
 
 /* ══════════════════════════════════════════════════════
    On load: check if already admin (session persisted).
